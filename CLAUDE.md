@@ -119,6 +119,11 @@ default language is Indonesian, with English as the alternative.
 - The chosen place, language and unit are kept in `localStorage`
   (`ww.place`, `ww.lang`, `ww.unit`) and the place also in
   `?place=<GeoNames id>`.
+- The region browser (Browse) reads `data/regions/`, generated from the
+  GeoNames dumps by `scripts/build-regions.js`; regenerate rather than edit
+  by hand. Province names are localized at request time through the
+  Open-Meteo geocoder (`localNames` in `server.js`); district names stay as
+  GeoNames has them.
 - One database table, `favorites` (user id, GeoNames id, a JSON snapshot of
   the place for drawing the list). It is marked `staging:private` because
   saved places can reveal where someone lives, so staging starts empty.

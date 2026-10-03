@@ -115,7 +115,9 @@
 
     <header class="flex flex-wrap items-center justify-between gap-3">
       <h1 class="text-2xl font-bold">World Weather</h1>
-      <div class="flex items-center gap-2">
+      <div class="flex flex-wrap items-center gap-2">
+        <button type="button" id="browse-btn" aria-controls="browse" aria-expanded="false"
+          class="inline-flex items-center gap-1.5 rounded-lg border border-zinc-200 dark:border-zinc-800 px-2.5 py-1.5 text-sm font-medium text-zinc-700 dark:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500">Jelajahi</button>
         <button type="button" id="favorites-btn" aria-controls="favorites" aria-expanded="false"
           class="inline-flex items-center gap-1.5 rounded-lg border border-zinc-200 dark:border-zinc-800 px-2.5 py-1.5 text-sm font-medium text-zinc-700 dark:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500">Favorit</button>
         <div class="inline-flex rounded-lg border border-zinc-200 dark:border-zinc-800 p-0.5 text-sm" role="group" id="lang-toggle" aria-label="Bahasa">
@@ -139,6 +141,7 @@
 
     <!-- Search results / pick-a-place list, status messages and the weather
          report are all rendered by app.js into these regions. -->
+    <section id="browse" class="hidden"></section>
     <section id="favorites" class="hidden"></section>
     <section id="results" class="hidden" aria-live="polite"></section>
     <section id="status" aria-live="polite"></section>

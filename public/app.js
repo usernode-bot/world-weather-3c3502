@@ -51,6 +51,8 @@
       noMatch: 'Tidak ada yang cocok dengan "{q}".',
       districtCount: '{n} kabupaten/kota',
       regionsSource: 'Daftar wilayah: {src}',
+      browseHint: 'atau pilih negara → provinsi → kabupaten/kota',
+      changeArea: 'Ganti wilayah',
       close: 'Tutup',
       pickTitle: 'Ada beberapa tempat yang cocok dengan "{q}". Pilih yang Anda maksud:',
       current: 'Cuaca saat ini',
@@ -162,6 +164,8 @@
       noMatch: 'Nothing matches "{q}".',
       districtCount: '{n} districts',
       regionsSource: 'Place lists: {src}',
+      browseHint: 'or pick country → province → district',
+      changeArea: 'Change area',
       close: 'Close',
       pickTitle: 'Several places match "{q}". Choose the one you mean:',
       current: 'Current weather',
@@ -297,6 +301,9 @@
     // 'error' if it failed) and the filter text.
     browseOpen: false,
     browsePath: [],
+    // The browse levels the open report was picked from (null when it was
+    // opened any other way), so "Change area" can go back to its siblings.
+    reportBrowsePath: null,
     lists: {},
     filter: '',
   };
@@ -475,7 +482,11 @@
       el.innerHTML = '<div class="py-10 text-center flex flex-col items-center gap-2">'
         + icon('cloudSun', 'w-10 h-10 text-sky-600 dark:text-sky-400')
         + '<h2 class="text-lg font-semibold">' + esc(t('emptyTitle')) + '</h2>'
-        + '<p class="text-sm text-zinc-600 dark:text-zinc-400 max-w-sm">' + esc(t('emptyBody')) + '</p></div>';
+        + '<p class="text-sm text-zinc-600 dark:text-zinc-400 max-w-sm">' + esc(t('emptyBody')) + '</p>'
+        + '<button type="button" id="empty-browse" aria-controls="browse" class="mt-3 inline-flex items-center gap-1.5 rounded-lg border border-zinc-200 dark:border-zinc-800 px-2.5 py-1.5 text-sm font-medium text-zinc-700 dark:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500">'
+        + icon('map', 'w-4 h-4 text-sky-600 dark:text-sky-400') + '<span>' + esc(t('browseTitle')) + '</span></button>'
+        + '<p class="text-xs text-zinc-500 dark:text-zinc-400">' + esc(t('browseHint')) + '</p></div>';
+      $('empty-browse').addEventListener('click', function () { setBrowseOpen(true); });
       return;
     }
     if (kind === 'loading') {
@@ -540,6 +551,9 @@
       + '<div class="flex items-baseline gap-2 flex-wrap"><h2 class="text-xl font-bold" id="place-name">' + esc(p.name) + '</h2>'
       + '<span class="text-xs text-zinc-500 dark:text-zinc-400">' + esc(placeKind(p.featureCode)) + '</span></div>'
       + (hierarchy(p) ? '<p class="text-sm text-zinc-600 dark:text-zinc-400">' + esc(hierarchy(p)) + '</p>' : '')
+      + (state.reportBrowsePath && state.reportBrowsePath.length
+        ? '<button type="button" id="change-area" aria-controls="browse" class="text-sm text-sky-700 dark:text-sky-300 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 rounded">' + esc(t('changeArea')) + '</button>'
+        : '')
       + '<p class="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">' + esc(t('coords', {
         lat: num(p.latitude, 4), lon: num(p.longitude, 4), e: has(p.elevation) ? num(p.elevation) : '-',
       })) + '</p></div>'
@@ -659,6 +673,11 @@
 
     $('report').innerHTML = html;
     $('fav-toggle').addEventListener('click', function () { toggleFavorite(p); });
+    if ($('change-area')) $('change-area').addEventListener('click', function () {
+      state.browseOpen = true;
+      if (state.favOpen) { state.favOpen = false; renderFavorites(); }
+      browseTo(state.reportBrowsePath.slice());
+    });
     renderFavToggle();
     show('report', true);
   }
@@ -823,9 +842,15 @@
   // children is null for countries (not counted) and 0 for a leaf.
   function browseItems(data) {
     if (data.countries) {
-      return data.countries.map(function (c) {
+      var list = data.countries.map(function (c) {
         return { id: c.id, code: c.code, name: countryName(c), children: null };
       }).sort(function (a, b) { return a.name.localeCompare(b.name, STRINGS[state.lang].locale); });
+      // In Indonesian, Indonesia leads the list (once, not again under I).
+      if (state.lang === 'id') {
+        var at = list.findIndex(function (c) { return c.code === 'ID'; });
+        if (at >= 0) list.unshift(Object.assign(list.splice(at, 1)[0], { pinned: true }));
+      }
+      return list;
     }
     return data.regions;
   }
@@ -910,7 +935,7 @@
     el.innerHTML = '<ul class="divide-y divide-zinc-200 dark:divide-zinc-800" data-level="' + state.browsePath.length + '">'
       + shown.map(function (it, i) {
         var drill = it.children !== 0;
-        return '<li><button type="button" data-row="' + i + '" class="un-pressable w-full text-left px-4 py-3 flex items-center justify-between gap-3 hover:bg-zinc-50 dark:hover:bg-zinc-800/60 focus:outline-none focus-visible:bg-zinc-100 dark:focus-visible:bg-zinc-800">'
+        return '<li' + (it.pinned && shown.length > 1 ? ' class="border-b-4 border-zinc-200 dark:border-zinc-800" data-pinned="true"' : '') + '><button type="button" data-row="' + i + '" class="un-pressable w-full text-left px-4 py-3 flex items-center justify-between gap-3 hover:bg-zinc-50 dark:hover:bg-zinc-800/60 focus:outline-none focus-visible:bg-zinc-100 dark:focus-visible:bg-zinc-800">'
           + '<span class="min-w-0"><span class="block font-medium truncate">' + esc(it.name) + '</span>'
           + (it.children || it.alt ? '<span class="block text-xs text-zinc-500 dark:text-zinc-400">'
             + esc([it.alt, it.children ? t('districtCount', { n: num(it.children) }) : ''].filter(Boolean).join(' · ')) + '</span>' : '')
@@ -943,8 +968,9 @@
     state.filter = '';
     renderBrowse();
     var url = browseUrl();
-    if (state.lists[url] === undefined || state.lists[url] === 'error') loadList(url);
+    var loading = state.lists[url] === undefined || state.lists[url] === 'error' ? loadList(url) : null;
     $('browse').scrollIntoView({ block: 'nearest' });
+    return loading;
   }
 
   function setBrowseOpen(open) {
@@ -962,8 +988,11 @@
   }
 
   function openFromBrowse(id) {
+    // A leaf row does not push itself, so this is the list it was picked
+    // from; a "Lihat cuaca" button opens the level that is showing.
+    var from = state.browsePath.slice();
     setBrowseOpen(false);
-    openPlaceId(id);
+    openPlaceId(id, from);
   }
 
   // When this app fetched the data, in the place's own time zone so it reads
@@ -1023,11 +1052,12 @@
     }
   }
 
-  async function choosePlace(place) {
+  async function choosePlace(place, fromBrowse) {
     var seq = ++state.seq;
     state.place = place;
     state.weather = null;
-    state.lastAction = function () { choosePlace(place); };
+    state.reportBrowsePath = fromBrowse || null;
+    state.lastAction = function () { choosePlace(place, fromBrowse); };
     show('results', false);
     show('report', false);
     setStatus('loading', t('loading'));
@@ -1044,15 +1074,15 @@
     }
   }
 
-  async function openPlaceId(id) {
+  async function openPlaceId(id, fromBrowse) {
     var seq = ++state.seq;
-    state.lastAction = function () { openPlaceId(id); };
+    state.lastAction = function () { openPlaceId(id, fromBrowse); };
     show('results', false);
     setStatus('loading', t('loading'));
     try {
       var data = await api('/api/place?id=' + id + '&lang=' + state.lang);
       if (seq !== state.seq) return;
-      choosePlace(data.place);
+      choosePlace(data.place, fromBrowse);
     } catch (err) {
       if (seq !== state.seq) return;
       setStatus(err.status === 404 ? 'info' : 'error', err.status === 404 ? t('placeError') : t('weatherError'));
@@ -1102,7 +1132,7 @@
     if (!changed) return;
     // Place names come back in the chosen language too, so reload whatever
     // is on screen (or still loading) rather than only relabelling it.
-    if (state.place) openPlaceId(state.place.id);
+    if (state.place) openPlaceId(state.place.id, state.reportBrowsePath);
     else if (state.lastAction) state.lastAction();
     else setStatus('empty');
   }
@@ -1119,16 +1149,27 @@
   }
 
   // ?browse opens the region browser; ?browse=<country code> opens it at
-  // that country's provinces.
+  // that country's provinces and ?browse=<country code>.<province code>
+  // (e.g. ID.30) at that province's districts, falling back to the country
+  // when the province is not found.
   if (params.has('browse')) {
-    var startCc = (params.get('browse') || '').toUpperCase();
+    var startM = /^([A-Za-z]{2})(?:\.([A-Za-z0-9]+))?$/.exec(params.get('browse') || '');
     setBrowseOpen(true);
-    if (/^[A-Z]{2}$/.test(startCc)) {
+    if (startM) {
+      var startCc = startM[1].toUpperCase(), startA1 = startM[2];
       api('/api/regions').then(function (data) {
         state.lists['/api/regions'] = data;
         var c = (data.countries || []).filter(function (x) { return x.code === startCc; })[0];
-        if (c && state.browseOpen && !state.browsePath.length) browseTo([{ id: c.id, code: c.code, name: countryName(c) }]);
-        else renderBrowseList();
+        if (!c || !state.browseOpen || state.browsePath.length) { renderBrowseList(); return; }
+        var countryPath = [{ id: c.id, code: c.code, name: countryName(c) }];
+        var loading = browseTo(countryPath), url = browseUrl();
+        if (!startA1) return;
+        Promise.resolve(loading).then(function () {
+          var regions = state.lists[url];
+          var a1 = regions && regions.regions && regions.regions.filter(function (r) { return r.code === startA1; })[0];
+          var stillThere = state.browseOpen && state.browsePath.length === 1 && state.browsePath[0].code === c.code;
+          if (a1 && stillThere) browseTo(countryPath.concat([{ id: a1.id, code: a1.code, name: a1.name }]));
+        });
       }).catch(function () {});
     }
   }

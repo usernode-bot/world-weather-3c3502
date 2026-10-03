@@ -35,4 +35,8 @@ The chosen place is kept in the address (`?place=<GeoNames id>`) and in
   the same weather report. The lists are bundled per country in
   `data/regions/` (built from the GeoNames dumps by
   `node scripts/build-regions.js`) and served by `/api/regions`, read only
-  when a level is opened. `?browse=<country code>` opens it at a country.
+  when a level is opened. `?browse=<country code>` opens it at a country,
+  `?browse=<country code>.<province code>` (e.g. `ID.30`, West Java) at a
+  province. The empty screen has a second Browse button, Indonesia leads the
+  country list in Indonesian, and a report opened from the browser has a
+  "Change area" link back to the list it came from.

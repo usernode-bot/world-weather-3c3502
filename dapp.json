@@ -34,6 +34,15 @@
       "impact": ["public/**", "server.js", "data/regions/**"]
     },
     {
+      "id": "browse.districts",
+      "name": "Region browser deep link opens a province's kabupaten/kota (real /api/regions)",
+      "path": "/?browse=ID.30",
+      "expectSelector": "#browse-list ul[data-level=\"2\"] button[data-row]",
+      "expectText": "Kabupaten Bandung",
+      "visual": true,
+      "impact": ["public/**", "server.js", "data/regions/**"]
+    },
+    {
       "name": "Region browser lists all countries",
       "path": "/?browse",
       "expectSelector": "#browse-list ul[data-level=\"0\"] button[data-row]"

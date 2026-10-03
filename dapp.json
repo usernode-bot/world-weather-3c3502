@@ -1,6 +1,8 @@
 {
   "description": "Real-time weather information for any location worldwide, from countries to villages",
-  "icon": { "image": "brand/icon.png" },
+  "icon": {
+    "image": "brand/icon.png"
+  },
   "secrets": [],
   "tests": [
     {
@@ -14,7 +16,10 @@
       "path": "/?place=1622846",
       "expectSelector": "#current[data-state=\"loaded\"] #current-temp",
       "visual": true,
-      "impact": ["public/**", "server.js"]
+      "impact": [
+        "public/**",
+        "server.js"
+      ]
     },
     {
       "id": "favorites.toggle",
@@ -22,7 +27,14 @@
       "path": "/?place=1622846",
       "expectSelector": "#fav-toggle[aria-pressed=\"false\"]:not([disabled])",
       "visual": true,
-      "impact": ["public/**", "server.js"]
+      "impact": [
+        "public/**",
+        "server.js"
+      ]
     }
-  ]
+  ],
+  "governance": {
+    "approvers": "invited",
+    "approvals": "default"
+  }
 }

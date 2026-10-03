@@ -1,8 +1,8 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="id">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   
   <script>
   // usernode-dev-console@1
@@ -92,6 +92,8 @@
        The bridge is also where the app learns the viewer's light/dark theme:
        the script below reads it. -->
   <script src="/usernode-bridge/v1/bridge.js"></script>
+  <link rel="stylesheet" href="/usernode-native/v1/native.css">
+  <script src="/usernode-native/v1/native.js"></script>
   <!-- Follow the viewer's Homeroom theme (the bridge reports it), with the
        OS preference as the fallback outside Homeroom. -->
   <script>
@@ -109,102 +111,37 @@
   </script>
 </head>
 <body class="bg-zinc-50 text-zinc-900 dark:bg-zinc-950 dark:text-zinc-100 min-h-screen">
-  <main class="max-w-md mx-auto px-4 py-10 flex flex-col gap-6">
+  <main class="max-w-2xl mx-auto px-4 pt-6 pb-10 flex flex-col gap-6" style="padding-bottom: calc(2.5rem + var(--un-safe-inset-bottom, env(safe-area-inset-bottom, 0px)))">
 
-    <!-- usernode-starter-notice@1 — starter-template messaging. When building
-         the user's real app, replace this whole screen and delete this block,
-         both sentinel comments included. -->
-    <section class="rounded-2xl border border-violet-500/30 bg-gradient-to-b from-violet-600/10 dark:from-violet-600/20 to-transparent p-6 text-center flex flex-col items-center gap-3">
-      <span class="inline-block rounded-full bg-violet-600/10 text-violet-700 dark:bg-violet-600/20 dark:text-violet-300 text-xs font-semibold uppercase tracking-wide px-3 py-1">Starter template</span>
+    <header class="flex flex-wrap items-center justify-between gap-3">
       <h1 class="text-2xl font-bold">World Weather</h1>
-      <p class="text-sm text-zinc-600 dark:text-zinc-300 leading-relaxed">Welcome to your new app! Everything on this screen is placeholder content that came with it.</p>
-      <p class="text-sm text-zinc-600 dark:text-zinc-300 leading-relaxed">Tap the <strong class="text-violet-700 dark:text-violet-300 font-semibold">Homeroom icon</strong> in the header and choose <strong class="text-violet-700 dark:text-violet-300 font-semibold">Start a new change</strong> to start building your app. Describe what you'd like in plain English, and it will be turned into your real app.</p>
-    </section>
-
-    <section>
-      <h2 class="text-sm font-medium text-zinc-500 mb-2 px-1">What's already working</h2>
-      <div class="rounded-xl border border-zinc-200 bg-white divide-y divide-zinc-200 dark:border-zinc-800 dark:bg-zinc-900/60 dark:divide-zinc-800">
-        <div class="flex items-start gap-3 p-4">
-          <svg class="w-5 h-5 text-violet-600 dark:text-violet-400 shrink-0 mt-0.5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M16.7 5.3a1 1 0 0 1 0 1.4l-7 7a1 1 0 0 1-1.4 0l-3-3a1 1 0 1 1 1.4-1.4L9 11.6l6.3-6.3a1 1 0 0 1 1.4 0Z" clip-rule="evenodd"/></svg>
-          <div>
-            <p class="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Sign-in</p>
-            <p class="text-sm text-zinc-600 dark:text-zinc-400">You're signed in through Homeroom automatically — no accounts to build.</p>
-          </div>
+      <div class="flex items-center gap-2">
+        <div class="inline-flex rounded-lg border border-zinc-200 dark:border-zinc-800 p-0.5 text-sm" role="group" id="lang-toggle" aria-label="Bahasa">
+          <button type="button" data-lang="id" class="px-2.5 py-1 rounded-md">ID</button>
+          <button type="button" data-lang="en" class="px-2.5 py-1 rounded-md">EN</button>
         </div>
-        <div class="flex items-start gap-3 p-4">
-          <svg class="w-5 h-5 text-violet-600 dark:text-violet-400 shrink-0 mt-0.5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M16.7 5.3a1 1 0 0 1 0 1.4l-7 7a1 1 0 0 1-1.4 0l-3-3a1 1 0 1 1 1.4-1.4L9 11.6l6.3-6.3a1 1 0 0 1 1.4 0Z" clip-rule="evenodd"/></svg>
-          <div>
-            <p class="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Database</p>
-            <p class="text-sm text-zinc-600 dark:text-zinc-400">Your app has its own private database, ready to store things.</p>
-          </div>
-        </div>
-        <div class="flex items-start gap-3 p-4">
-          <svg class="w-5 h-5 text-violet-600 dark:text-violet-400 shrink-0 mt-0.5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M16.7 5.3a1 1 0 0 1 0 1.4l-7 7a1 1 0 0 1-1.4 0l-3-3a1 1 0 1 1 1.4-1.4L9 11.6l6.3-6.3a1 1 0 0 1 1.4 0Z" clip-rule="evenodd"/></svg>
-          <div>
-            <p class="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Live API</p>
-            <p class="text-sm text-zinc-600 dark:text-zinc-400">The example below talks to a real server — try it.</p>
-          </div>
+        <div class="inline-flex rounded-lg border border-zinc-200 dark:border-zinc-800 p-0.5 text-sm" role="group" id="unit-toggle" aria-label="Satuan suhu">
+          <button type="button" data-unit="c" class="px-2.5 py-1 rounded-md">°C</button>
+          <button type="button" data-unit="f" class="px-2.5 py-1 rounded-md">°F</button>
         </div>
       </div>
-    </section>
-    <!-- /usernode-starter-notice@1 -->
+    </header>
 
-    <section class="rounded-xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900/60 p-5 flex flex-col items-center gap-5">
-      <div class="w-full flex items-baseline justify-between gap-2">
-        <h2 class="text-sm font-medium text-zinc-500">Try the example</h2>
-        <span class="text-xs text-zinc-500 dark:text-zinc-600">This example will be replaced</span>
-      </div>
+    <form id="search-form" class="flex gap-2" role="search" autocomplete="off">
+      <label for="search-input" class="sr-only" data-i18n="searchLabel">Cari lokasi</label>
+      <input id="search-input" type="search" enterkeyhint="search" maxlength="120"
+        class="flex-1 min-w-0 rounded-xl border border-zinc-300 bg-white px-4 py-2.5 text-base placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-sky-500 dark:border-zinc-700 dark:bg-zinc-900 dark:placeholder:text-zinc-500"
+        data-i18n-placeholder="searchPlaceholder" placeholder="Negara, kota, atau desa">
+      <button type="submit" id="search-btn" class="rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-semibold px-4 py-2.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-zinc-950" data-i18n="searchButton">Cari</button>
+    </form>
 
-      <button id="press-btn" class="w-32 h-32 rounded-full bg-violet-600 hover:bg-violet-500 active:scale-95 transition-all text-white text-xl font-bold shadow-lg shadow-violet-600/30">
-        Press!
-      </button>
-
-      <div id="count" class="text-lg text-zinc-600 dark:text-zinc-400">0 total presses</div>
-
-      <div class="w-full max-w-sm">
-        <h3 class="text-sm font-medium text-zinc-500 mb-2 text-center">Leaderboard</h3>
-        <div id="leaderboard" class="space-y-1"></div>
-      </div>
-    </section>
-
-    <p class="text-center text-xs text-zinc-500 dark:text-zinc-600">Built on Homeroom — this template screen disappears once you build your real app.</p>
+    <!-- Search results / pick-a-place list, status messages and the weather
+         report are all rendered by app.js into these regions. -->
+    <section id="results" class="hidden" aria-live="polite"></section>
+    <section id="status" aria-live="polite"></section>
+    <div id="report" class="hidden flex flex-col gap-6"></div>
   </main>
 
-  <script>
-    const params = new URLSearchParams(window.location.search);
-    const token = params.get('token') || '';
-    const headers = token ? { 'x-usernode-token': token } : {};
-
-    async function loadLeaderboard() {
-      const res = await fetch('/api/leaderboard', { headers });
-      if (!res.ok) return;
-      const { leaderboard } = await res.json();
-      const el = document.getElementById('leaderboard');
-      if (!leaderboard.length) {
-        el.innerHTML = '<p class="text-center text-zinc-500 dark:text-zinc-600 text-sm">No presses yet</p>';
-        return;
-      }
-      el.innerHTML = leaderboard.map((r, i) =>
-        '<div class="flex justify-between px-3 py-1 rounded ' + (i === 0 ? 'bg-violet-600/10 text-violet-700 dark:bg-violet-600/20 dark:text-violet-300' : 'text-zinc-600 dark:text-zinc-400') + '">' +
-        '<span>' + (i + 1) + '. ' + r.username + '</span>' +
-        '<span class="font-mono">' + r.presses + '</span></div>'
-      ).join('');
-      const total = leaderboard.reduce((s, r) => s + parseInt(r.presses), 0);
-      document.getElementById('count').textContent = total + ' total presses';
-    }
-
-    document.getElementById('press-btn').addEventListener('click', async () => {
-      try {
-        const res = await fetch('/api/press', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', ...headers },
-        });
-        if (res.ok) loadLeaderboard();
-        else if (res.status === 401) document.getElementById('count').textContent = 'Sign in to press!';
-      } catch {}
-    });
-
-    loadLeaderboard();
-  </script>
+  <script src="/app.js"></script>
 </body>
 </html>

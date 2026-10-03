@@ -1,5 +1,20 @@
 {
   "description": "Real-time weather information for any location worldwide, from countries to villages",
   "icon": { "image": "brand/icon.png" },
-  "secrets": []
+  "secrets": [],
+  "tests": [
+    {
+      "name": "Home shows the place search",
+      "path": "/",
+      "expectSelector": "#search-input"
+    },
+    {
+      "id": "weather.report",
+      "name": "Weather report loads live data for a saved place (Ubud)",
+      "path": "/?place=1622846",
+      "expectSelector": "#current[data-state=\"loaded\"] #current-temp",
+      "visual": true,
+      "impact": ["public/**", "server.js"]
+    }
+  ]
 }

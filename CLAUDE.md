@@ -101,11 +101,25 @@ tables you've marked private), etc.
 
 Real-time weather information for any location worldwide, from countries to villages
 
-_(add a sentence or two more of product context here so Claude Code has a
-shared understanding of what this app is for)_
+Search any place (country, region, city, village), then read one report in
+four sections: current weather, forecast, weather warnings and more info. The
+default language is Indonesian, with English as the alternative.
 
 ## App-specific conventions
 
-_(optional — e.g. "all currency values stored as integer cents, not
-floats"; "the `posts` table is append-only"; "avoid adding new
-dependencies"; etc.)_
+- **Live data only.** Every number comes from Open-Meteo (forecast,
+  geocoding, air quality) or NWS (US alerts), relayed by `server.js`. Never
+  fill in, estimate or mock a value: when it is missing upstream, show it as
+  unavailable. Advice text is derived only from fetched values.
+- Warning feeds: only NWS is wired up. BMKG's public feeds answered 403 from
+  the server. Other countries get a link to their national agency
+  (`AGENCIES` in `public/app.js`).
+- Strings live in `STRINGS.id` / `STRINGS.en` in `public/app.js`. Add both
+  whenever you add one.
+- No database tables. The chosen place, language and unit are kept in
+  `localStorage` (`ww.place`, `ww.lang`, `ww.unit`) and the place also in
+  `?place=<GeoNames id>`.
+- Design: zinc neutrals, sky-600 as the one accent (it matches the icon),
+  white/zinc-900 rounded-xl bordered panels under small uppercase section
+  headers, Lucide line icons in the accent colour. Light and dark looks
+  follow the Homeroom theme.

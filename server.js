@@ -1,4 +1,5 @@
 const express = require('express');
+const fs = require('fs');
 const path = require('path');
 const jwt = require('jsonwebtoken');
 const { Pool } = require('pg');
@@ -132,7 +133,7 @@ const UPSTREAM_TIMEOUT_MS = 10_000;
 // upstreams. Weather is kept 10 minutes (Open-Meteo updates every 15), place
 // names a day.
 const cache = new Map();
-const CACHE_MAX = 500;
+const CACHE_MAX = 2000;
 function cached(key, ttlMs, load) {
   const hit = cache.get(key);
   if (hit && hit.expires > Date.now()) return hit.value;
@@ -334,6 +335,87 @@ app.get('/api/weather', async (req, res) => {
     console.warn('weather failed: ' + err.message);
     res.status(502).json({ error: 'upstream_failed' });
   }
+});
+
+// ---------------------------------------------------------------------------
+// Region browser: countries, their provinces/states (admin1) and their
+// districts/regencies (admin2). The lists are bundled per country in
+// data/regions/, built from the GeoNames dumps by scripts/build-regions.js,
+// and read from disk only when a country is opened. Each entry carries its
+// GeoNames id, which /api/place opens like any search result; no weather
+// value comes from these files.
+// ---------------------------------------------------------------------------
+const REGIONS_DIR = path.join(__dirname, 'data', 'regions');
+const COUNTRIES = JSON.parse(fs.readFileSync(path.join(REGIONS_DIR, 'countries.json'), 'utf8'))
+  .map(([code, id, name]) => ({ code, id, name }));
+const COUNTRY_CODES = new Set(COUNTRIES.map((c) => c.code));
+const regionFiles = new Map();
+
+function countryRegions(cc) {
+  if (!regionFiles.has(cc)) {
+    regionFiles.set(cc, JSON.parse(fs.readFileSync(path.join(REGIONS_DIR, cc + '.json'), 'utf8')));
+  }
+  return regionFiles.get(cc);
+}
+
+function countryParam(raw) {
+  const cc = String(raw || '').toUpperCase();
+  return COUNTRY_CODES.has(cc) ? cc : null;
+}
+
+app.get('/api/regions', (_req, res) => {
+  res.set('Cache-Control', 'private, max-age=3600');
+  res.json({ countries: COUNTRIES });
+});
+
+// GeoNames' admin1 names are mostly English ("West Java"). The geocoder
+// already used for the report knows each one in the reader's language
+// ("Jawa Barat"), so ask it, a few at a time, and keep the GeoNames name
+// wherever it does not answer.
+// The Indonesian names often carry a level word ("Provinsi Bali",
+// "Propinsi Gorontalo", "Daerah Tingkat I Sumatera Utara", "Prefektur
+// Aichi") that some rows have and others lack, which scatters the list.
+// The browser already says which level is open, so drop it.
+const LEVEL_WORDS_ID = /^(?:Daerah Tingkat I|Provinsi|Propinsi|Prefektur|Kotamadya)\s+/;
+
+async function localNames(ids, lang) {
+  const names = new Map();
+  for (let i = 0; i < ids.length; i += 8) {
+    const batch = ids.slice(i, i + 8);
+    const found = await Promise.allSettled(batch.map((id) => placeById(id, lang)));
+    found.forEach((r, j) => {
+      if (r.status === 'fulfilled' && r.value && r.value.name) {
+        names.set(batch[j], lang === 'id' ? r.value.name.replace(LEVEL_WORDS_ID, '') : r.value.name);
+      }
+    });
+  }
+  return names;
+}
+
+app.get('/api/regions/:cc', async (req, res) => {
+  const cc = countryParam(req.params.cc);
+  if (!cc) return res.status(404).json({ error: 'not_found' });
+  const d = countryRegions(cc);
+  const names = await localNames(d.admin1.map((r) => r[1]), langParam(req.query.lang));
+  res.set('Cache-Control', 'private, max-age=3600');
+  res.json({
+    regions: d.admin1.map(([code, id, name]) => {
+      const local = names.get(id) || name;
+      return {
+        code, id, name: local, alt: local === name ? null : name,
+        children: (d.admin2[code] || []).length,
+      };
+    }).sort((a, b) => a.name.localeCompare(b.name)),
+  });
+});
+
+app.get('/api/regions/:cc/:admin1', (req, res) => {
+  const cc = countryParam(req.params.cc);
+  const d = cc && countryRegions(cc);
+  const a1 = d && d.admin1.find((r) => r[0] === req.params.admin1);
+  if (!a1) return res.status(404).json({ error: 'not_found' });
+  res.set('Cache-Control', 'private, max-age=3600');
+  res.json({ regions: (d.admin2[a1[0]] || []).map(([id, name]) => ({ id, name, children: 0 })) });
 });
 
 // ---------------------------------------------------------------------------

@@ -31,6 +31,20 @@
         "public/**",
         "server.js"
       ]
+    },
+    {
+      "id": "browse.provinces",
+      "name": "Region browser opens a country's provinces (real /api/regions)",
+      "path": "/?browse=ID",
+      "expectSelector": "#browse-list ul[data-level=\"1\"] button[data-row]",
+      "expectText": "Central Java",
+      "visual": true,
+      "impact": ["public/**", "server.js", "data/regions/**"]
+    },
+    {
+      "name": "Region browser lists all countries",
+      "path": "/?browse",
+      "expectSelector": "#browse-list ul[data-level=\"0\"] button[data-row]"
     }
   ],
   "governance": {

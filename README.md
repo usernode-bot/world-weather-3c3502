@@ -29,3 +29,10 @@ The chosen place is kept in the address (`?place=<GeoNames id>`) and in
 - **Favorites.** The Save button on a report stars the place; the Favorites
   button in the header lists saved places to reopen or remove. They are
   stored per Homeroom user in the `favorites` table (`/api/favorites`).
+- **Browse.** The Browse button in the header lists every country; opening
+  one lists its provinces or states, and opening a province lists its
+  districts or regencies. Each level has a filter box, and any place opens
+  the same weather report. The lists are bundled per country in
+  `data/regions/` (built from the GeoNames dumps by
+  `node scripts/build-regions.js`) and served by `/api/regions`, read only
+  when a level is opened. `?browse=<country code>` opens it at a country.

@@ -1,6 +1,7 @@
 const express = require('express');
 const path = require('path');
 const jwt = require('jsonwebtoken');
+const { Pool } = require('pg');
 
 const app = express();
 const port = process.env.PORT || 3000;
@@ -335,6 +336,100 @@ app.get('/api/weather', async (req, res) => {
   }
 });
 
+// ---------------------------------------------------------------------------
+// Favorite places, saved per Homeroom user. Only the GeoNames id and a
+// snapshot of the place (name, region, country) are stored, so the list can
+// be drawn without a lookup per row; opening one still fetches it live.
+// Marked staging:private: the places someone saves can point at where they
+// live, so staging previews get the table empty.
+// ---------------------------------------------------------------------------
+const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+const FAVORITES_MAX = 50;
+
+const dbReady = (async () => {
+  await pool.query(`CREATE TABLE IF NOT EXISTS favorites (
+    user_id TEXT NOT NULL,
+    place_id INTEGER NOT NULL,
+    place JSONB NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    PRIMARY KEY (user_id, place_id)
+  )`);
+  await pool.query(`COMMENT ON TABLE favorites IS 'staging:private'`);
+})();
+dbReady.catch((err) => console.error('favorites migration failed: ' + err.message));
+
+function placeIdParam(raw) {
+  const id = Number(raw);
+  return Number.isInteger(id) && id > 0 && id < 2 ** 31 ? id : null;
+}
+
+async function listFavorites(userId) {
+  const { rows } = await pool.query(
+    'SELECT place FROM favorites WHERE user_id = $1 ORDER BY created_at DESC, place_id',
+    [userId],
+  );
+  return rows.map((r) => r.place);
+}
+
+app.get('/api/favorites', async (req, res) => {
+  try {
+    await dbReady;
+    res.json({ favorites: await listFavorites(String(req.user.id)) });
+  } catch (err) {
+    console.error('favorites list failed: ' + err.message);
+    res.status(500).json({ error: 'favorites_failed' });
+  }
+});
+
+app.put('/api/favorites/:id', async (req, res) => {
+  const id = placeIdParam(req.params.id);
+  if (!id) return res.status(400).json({ error: 'invalid_id' });
+  const userId = String(req.user.id);
+  try {
+    await dbReady;
+    const { rows } = await pool.query(
+      'SELECT count(*)::int AS n, bool_or(place_id = $2) AS saved FROM favorites WHERE user_id = $1',
+      [userId, id],
+    );
+    if (!rows[0].saved && rows[0].n >= FAVORITES_MAX) {
+      return res.status(409).json({ error: 'too_many_favorites', max: FAVORITES_MAX });
+    }
+    // The snapshot comes from the geocoder, not the request, so a saved row
+    // always names a real place.
+    let place;
+    try {
+      place = await placeById(id, langParam(req.body && req.body.lang));
+    } catch (err) {
+      console.warn('favorite place lookup failed: ' + err.message);
+      return res.status(/ 404$/.test(err.message) ? 404 : 502).json({ error: 'upstream_failed' });
+    }
+    if (!place) return res.status(404).json({ error: 'not_found' });
+    await pool.query(
+      `INSERT INTO favorites (user_id, place_id, place) VALUES ($1, $2, $3)
+       ON CONFLICT (user_id, place_id) DO UPDATE SET place = EXCLUDED.place`,
+      [userId, id, place],
+    );
+    res.json({ favorites: await listFavorites(userId) });
+  } catch (err) {
+    console.error('favorite save failed: ' + err.message);
+    res.status(500).json({ error: 'favorites_failed' });
+  }
+});
+
+app.delete('/api/favorites/:id', async (req, res) => {
+  const id = placeIdParam(req.params.id);
+  if (!id) return res.status(400).json({ error: 'invalid_id' });
+  const userId = String(req.user.id);
+  try {
+    await dbReady;
+    await pool.query('DELETE FROM favorites WHERE user_id = $1 AND place_id = $2', [userId, id]);
+    res.json({ favorites: await listFavorites(userId) });
+  } catch (err) {
+    console.error('favorite remove failed: ' + err.message);
+    res.status(500).json({ error: 'favorites_failed' });
+  }
+});
+
 app.use(express.static(path.join(__dirname, 'public')));
 
 // HTML shell: serve the app if authenticated. Unauthenticated top-level
@@ -379,17 +474,20 @@ const server = app.listen(port, () => console.log(`Listening on :${port}`));
 // Let Envoy retire idle upstream connections at 60s, with a 15s margin.
 server.keepAliveTimeout = 75_000;
 
-function shutdown(signal) {
+async function shutdown(signal) {
   if (shuttingDown) return;
   shuttingDown = true;
   console.log(`[shutdown] ${signal} received, draining`);
-  server.close(() => process.exit(0));
+  server.close(() => {});
   server.closeIdleConnections?.();
-  const t = setTimeout(() => {
-    server.closeAllConnections?.();
-    process.exit(0);
-  }, DRAIN_MS);
+  const t = setTimeout(() => server.closeAllConnections?.(), DRAIN_MS);
   t.unref?.();
+  try {
+    await pool.end();
+  } catch (err) {
+    console.error('[shutdown] pool.end failed', err.message);
+  }
+  process.exit(0);
 }
 
 process.on('SIGTERM', () => shutdown('SIGTERM'));

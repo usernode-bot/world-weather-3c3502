@@ -24,6 +24,21 @@
       weatherError: 'Data cuaca tidak dapat diambil saat ini. Coba lagi sebentar lagi.',
       placeError: 'Lokasi yang disimpan tidak dapat dibuka. Cari lokasi lagi.',
       retry: 'Coba lagi',
+      favorites: 'Favorit',
+      favSave: 'Simpan',
+      favSaved: 'Tersimpan',
+      favSaveLabel: 'Simpan {name} ke favorit',
+      favSavedLabel: '{name} ada di favorit. Ketuk untuk menghapus.',
+      favAdded: '{name} ditambahkan ke favorit.',
+      favRemoved: '{name} dihapus dari favorit.',
+      favRemove: 'Hapus {name} dari favorit',
+      favLoading: 'Memuat favorit…',
+      favEmpty: 'Belum ada favorit. Buka cuaca suatu tempat, lalu ketuk Simpan.',
+      favSearch: 'Cari tempat',
+      favLoadError: 'Favorit tidak dapat dimuat. Coba lagi.',
+      favSaveError: 'Favorit tidak dapat diperbarui. Coba lagi.',
+      favTooMany: 'Favorit sudah penuh ({max} tempat). Hapus satu dulu.',
+      close: 'Tutup',
       pickTitle: 'Ada beberapa tempat yang cocok dengan "{q}". Pilih yang Anda maksud:',
       current: 'Cuaca saat ini',
       forecast: 'Prakiraan',
@@ -107,6 +122,21 @@
       weatherError: 'Weather data could not be loaded right now. Try again in a moment.',
       placeError: 'The saved place could not be opened. Search for it again.',
       retry: 'Try again',
+      favorites: 'Favorites',
+      favSave: 'Save',
+      favSaved: 'Saved',
+      favSaveLabel: 'Save {name} to favorites',
+      favSavedLabel: '{name} is in your favorites. Tap to remove it.',
+      favAdded: '{name} added to favorites.',
+      favRemoved: '{name} removed from favorites.',
+      favRemove: 'Remove {name} from favorites',
+      favLoading: 'Loading favorites…',
+      favEmpty: 'No favorites yet. Open a place\'s weather, then tap Save.',
+      favSearch: 'Search for a place',
+      favLoadError: 'Favorites could not be loaded. Try again.',
+      favSaveError: 'Favorites could not be updated. Try again.',
+      favTooMany: 'Your favorites are full ({max} places). Remove one first.',
+      close: 'Close',
       pickTitle: 'Several places match "{q}". Choose the one you mean:',
       current: 'Current weather',
       forecast: 'Forecast',
@@ -231,6 +261,11 @@
     // Bumped by every search or place load; a response for an older one is
     // dropped so a slow request can never overwrite a newer screen.
     seq: 0,
+    // Saved places, newest first: null until loaded, 'error' if loading failed.
+    favorites: null,
+    favOpen: false,
+    // Place ids with a save or remove in flight.
+    favBusy: {},
   };
 
   function storedLang() {
@@ -332,6 +367,9 @@
     rain: '<path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242"/><path d="M16 14v6"/><path d="M8 14v6"/><path d="M12 16v6"/>',
     snow: '<path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242"/><path d="M8 15h.01"/><path d="M8 19h.01"/><path d="M12 17h.01"/><path d="M12 21h.01"/><path d="M16 15h.01"/><path d="M16 19h.01"/>',
     storm: '<path d="M6 16.326A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 .5 8.973"/><path d="m13 12-3 5h4l-3 5"/>',
+    star: '<path d="M11.525 2.295a.53.53 0 0 1 .95 0l2.31 4.679a2.123 2.123 0 0 0 1.595 1.16l5.166.756a.53.53 0 0 1 .294.904l-3.736 3.638a2.123 2.123 0 0 0-.611 1.878l.882 5.14a.53.53 0 0 1-.771.56l-4.618-2.428a2.122 2.122 0 0 0-1.973 0L6.396 21.01a.53.53 0 0 1-.77-.56l.881-5.139a2.122 2.122 0 0 0-.611-1.879L2.16 9.795a.53.53 0 0 1 .294-.906l5.165-.755a2.122 2.122 0 0 0 1.597-1.16z"/>',
+    trash: '<path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/>',
+    x: '<path d="M18 6 6 18"/><path d="m6 6 12 12"/>',
     alert: '<path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4"/><path d="M12 17h.01"/>',
   };
   function iconFor(code, isDay) {
@@ -350,8 +388,15 @@
     return '<svg class="' + cls + '" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + ICONS[name] + '</svg>';
   }
 
-  async function api(path) {
-    var res = await fetch(path, { headers: authHeaders });
+  async function api(path, opts) {
+    opts = opts || {};
+    var headers = Object.assign({}, authHeaders);
+    if (opts.body) headers['content-type'] = 'application/json';
+    var res = await fetch(path, {
+      method: opts.method || 'GET',
+      headers: headers,
+      body: opts.body ? JSON.stringify(opts.body) : undefined,
+    });
     var body = null;
     try { body = await res.json(); } catch (_) {}
     if (!res.ok) {
@@ -373,6 +418,7 @@
     $('unit-toggle').setAttribute('aria-label', state.lang === 'id' ? 'Satuan suhu' : 'Temperature unit');
     segment('lang-toggle', 'lang', state.lang);
     segment('unit-toggle', 'unit', state.unit);
+    renderFavoritesButton();
   }
 
   var SEG_ON = ['bg-sky-600', 'text-white'];
@@ -454,12 +500,15 @@
     if (isArea(p.featureCode)) notes.push(t('areaNote'));
     if (w.grid && w.grid.distanceKm >= 1) notes.push(t('gridNote', { d: num(w.grid.distanceKm, w.grid.distanceKm < 10 ? 1 : 0) }));
     html += '<section id="location">'
+      + '<div class="flex items-start justify-between gap-3"><div class="min-w-0">'
       + '<div class="flex items-baseline gap-2 flex-wrap"><h2 class="text-xl font-bold" id="place-name">' + esc(p.name) + '</h2>'
       + '<span class="text-xs text-zinc-500 dark:text-zinc-400">' + esc(placeKind(p.featureCode)) + '</span></div>'
       + (hierarchy(p) ? '<p class="text-sm text-zinc-600 dark:text-zinc-400">' + esc(hierarchy(p)) + '</p>' : '')
       + '<p class="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">' + esc(t('coords', {
         lat: num(p.latitude, 4), lon: num(p.longitude, 4), e: has(p.elevation) ? num(p.elevation) : '-',
-      })) + '</p>'
+      })) + '</p></div>'
+      + '<button type="button" id="fav-toggle" class="shrink-0 inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-sm font-medium focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500"></button>'
+      + '</div>'
       + notes.map(function (n) { return '<p class="mt-2 text-sm text-amber-800 dark:text-amber-200">' + esc(n) + '</p>'; }).join('')
       + '</section>';
 
@@ -573,7 +622,145 @@
       })) + '</p></footer>';
 
     $('report').innerHTML = html;
+    $('fav-toggle').addEventListener('click', function () { toggleFavorite(p); });
+    renderFavToggle();
     show('report', true);
+  }
+
+  // ---------------------------------------------------------------- favorites
+  function favList() { return Array.isArray(state.favorites) ? state.favorites : []; }
+  function isFavorite(id) { return favList().some(function (f) { return f.id === id; }); }
+
+  function starIcon(filled, cls) {
+    return '<svg class="' + cls + '" viewBox="0 0 24 24" fill="' + (filled ? 'currentColor' : 'none') + '" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + ICONS.star + '</svg>';
+  }
+
+  var FAV_ON = ['border-sky-600', 'bg-sky-50', 'text-sky-700', 'dark:border-sky-500', 'dark:bg-sky-950/40', 'dark:text-sky-300'];
+  var FAV_OFF = ['border-zinc-300', 'bg-white', 'text-zinc-700', 'dark:border-zinc-700', 'dark:bg-zinc-900', 'dark:text-zinc-200'];
+  function renderFavToggle() {
+    var b = $('fav-toggle'), p = state.place;
+    if (!b || !p) return;
+    var on = isFavorite(p.id);
+    b.setAttribute('aria-pressed', on ? 'true' : 'false');
+    b.setAttribute('aria-label', t(on ? 'favSavedLabel' : 'favSaveLabel', { name: p.name }));
+    b.disabled = !!state.favBusy[p.id] || state.favorites === null;
+    b.classList.toggle('opacity-60', b.disabled);
+    FAV_ON.forEach(function (c) { b.classList.toggle(c, on); });
+    FAV_OFF.forEach(function (c) { b.classList.toggle(c, !on); });
+    b.innerHTML = starIcon(on, 'w-4 h-4 text-sky-600 dark:text-sky-400') + '<span>' + esc(t(on ? 'favSaved' : 'favSave')) + '</span>';
+  }
+
+  function renderFavoritesButton() {
+    var b = $('favorites-btn');
+    b.setAttribute('aria-expanded', state.favOpen ? 'true' : 'false');
+    b.innerHTML = starIcon(state.favOpen, 'w-4 h-4 text-sky-600 dark:text-sky-400')
+      + '<span>' + esc(t('favorites')) + '</span>'
+      + (favList().length ? '<span class="text-xs text-zinc-500 dark:text-zinc-400 tabular-nums">' + favList().length + '</span>' : '');
+  }
+
+  function renderFavorites() {
+    renderFavoritesButton();
+    var el = $('favorites');
+    if (!state.favOpen) { el.innerHTML = ''; show('favorites', false); return; }
+    var head = '<div class="flex items-center justify-between mb-2 px-1">'
+      + '<h2 class="text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">' + esc(t('favorites')) + '</h2>'
+      + '<button type="button" id="fav-close" class="un-touch-target rounded-md p-1 text-zinc-500 hover:text-zinc-800 dark:text-zinc-400 dark:hover:text-zinc-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500" aria-label="' + esc(t('close')) + '">'
+      + icon('x', 'w-4 h-4') + '</button></div>';
+    var body;
+    if (state.favorites === null) {
+      body = '<p class="' + CARD + ' px-4 py-3 text-sm text-zinc-500 dark:text-zinc-400" role="status">' + esc(t('favLoading')) + '</p>';
+    } else if (state.favorites === 'error') {
+      body = '<div class="rounded-xl border border-red-200 bg-red-50 text-red-800 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-200 px-4 py-3 text-sm flex flex-col gap-3 items-start" role="alert">'
+        + '<p>' + esc(t('favLoadError')) + '</p>'
+        + '<button type="button" id="fav-retry" class="rounded-lg border border-current px-3 py-1.5 font-medium">' + esc(t('retry')) + '</button></div>';
+    } else if (!state.favorites.length) {
+      body = '<div class="' + CARD + ' px-4 py-4 text-sm flex flex-col gap-3 items-start" id="fav-empty">'
+        + '<p class="text-zinc-600 dark:text-zinc-400">' + esc(t('favEmpty')) + '</p>'
+        + '<button type="button" id="fav-search" class="rounded-lg bg-sky-600 hover:bg-sky-500 text-white font-semibold px-3 py-1.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-zinc-950">' + esc(t('favSearch')) + '</button></div>';
+    } else {
+      body = '<ul id="fav-list" class="rounded-xl border border-zinc-200 bg-white divide-y divide-zinc-200 overflow-hidden dark:border-zinc-800 dark:bg-zinc-900 dark:divide-zinc-800">'
+        + state.favorites.map(function (f) {
+          var current = state.place && state.place.id === f.id;
+          return '<li class="flex items-stretch" data-fav-id="' + f.id + '">'
+            + '<button type="button" data-open="' + f.id + '" class="un-pressable flex-1 min-w-0 text-left px-4 py-3 flex items-center gap-3 hover:bg-zinc-50 dark:hover:bg-zinc-800/60 focus:outline-none focus-visible:bg-zinc-100 dark:focus-visible:bg-zinc-800"' + (current ? ' aria-current="true"' : '') + '>'
+            + starIcon(true, 'w-4 h-4 shrink-0 text-sky-600 dark:text-sky-400')
+            + '<span class="min-w-0"><span class="block font-semibold truncate">' + esc(f.name) + '</span>'
+            + '<span class="block text-sm text-zinc-600 dark:text-zinc-400 truncate">' + esc(hierarchy(f) || '') + '</span></span></button>'
+            + '<button type="button" data-remove="' + f.id + '" class="shrink-0 px-4 text-zinc-500 hover:text-red-600 dark:text-zinc-400 dark:hover:text-red-400 focus:outline-none focus-visible:bg-zinc-100 dark:focus-visible:bg-zinc-800"'
+            + (state.favBusy[f.id] ? ' disabled' : '') + ' aria-label="' + esc(t('favRemove', { name: f.name })) + '">'
+            + icon('trash', 'w-5 h-5') + '</button></li>';
+        }).join('') + '</ul>';
+    }
+    el.innerHTML = head + body;
+    show('favorites', true);
+    $('fav-close').addEventListener('click', function () { setFavOpen(false); });
+    if ($('fav-retry')) $('fav-retry').addEventListener('click', loadFavorites);
+    if ($('fav-search')) $('fav-search').addEventListener('click', function () {
+      setFavOpen(false);
+      $('search-input').focus();
+    });
+    el.querySelectorAll('button[data-open]').forEach(function (b) {
+      b.addEventListener('click', function () {
+        setFavOpen(false);
+        openPlaceId(Number(b.dataset.open));
+      });
+    });
+    el.querySelectorAll('button[data-remove]').forEach(function (b) {
+      b.addEventListener('click', function () {
+        var id = Number(b.dataset.remove);
+        var f = favList().filter(function (x) { return x.id === id; })[0];
+        if (f) setFavorite(f, false);
+      });
+    });
+  }
+
+  function setFavOpen(open) {
+    state.favOpen = open;
+    if (open && state.favorites === 'error') loadFavorites();
+    renderFavorites();
+  }
+
+  function favoritesChanged() {
+    renderFavorites();
+    renderFavToggle();
+  }
+
+  async function loadFavorites() {
+    state.favorites = null;
+    favoritesChanged();
+    try {
+      state.favorites = (await api('/api/favorites')).favorites || [];
+    } catch (_) {
+      state.favorites = 'error';
+    }
+    favoritesChanged();
+  }
+
+  function notify(text) {
+    if (window.unNative && typeof window.unNative.toast === 'function') window.unNative.toast(text);
+  }
+
+  function toggleFavorite(place) {
+    setFavorite(place, !isFavorite(place.id));
+  }
+
+  async function setFavorite(place, save) {
+    if (state.favBusy[place.id] || !Array.isArray(state.favorites)) return;
+    state.favBusy[place.id] = true;
+    favoritesChanged();
+    try {
+      var data = await api('/api/favorites/' + place.id, save
+        ? { method: 'PUT', body: { lang: state.lang } }
+        : { method: 'DELETE' });
+      state.favorites = data.favorites || [];
+      notify(t(save ? 'favAdded' : 'favRemoved', { name: place.name }));
+    } catch (err) {
+      var msg = err.message === 'too_many_favorites' ? t('favTooMany', { max: 50 }) : t('favSaveError');
+      if (window.unNative && typeof window.unNative.toast === 'function') notify(msg);
+      else window.alert(msg);
+    }
+    delete state.favBusy[place.id];
+    favoritesChanged();
   }
 
   // When this app fetched the data, in the place's own time zone so it reads
@@ -685,6 +872,7 @@
     $('search-input').blur();
     search($('search-input').value);
   });
+  $('favorites-btn').addEventListener('click', function () { setFavOpen(!state.favOpen); });
   $('lang-toggle').addEventListener('click', function (e) {
     var b = e.target.closest('button[data-lang]');
     if (!b) return;
@@ -705,6 +893,7 @@
     var changed = state.lang !== lang;
     state.lang = lang;
     renderStatic();
+    renderFavorites();
     if (!changed) return;
     // Place names come back in the chosen language too, so reload whatever
     // is on screen (or still loading) rather than only relabelling it.
@@ -714,6 +903,7 @@
   }
 
   renderStatic();
+  loadFavorites();
 
   // The viewer's Homeroom language, when set, outranks the device guess
   // (an explicit choice in this app outranks both).

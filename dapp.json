@@ -15,6 +15,14 @@
       "expectSelector": "#current[data-state=\"loaded\"] #current-temp",
       "visual": true,
       "impact": ["public/**", "server.js"]
+    },
+    {
+      "id": "favorites.toggle",
+      "name": "Weather report shows Save once favorites load (real /api/favorites)",
+      "path": "/?place=1622846",
+      "expectSelector": "#fav-toggle[aria-pressed=\"false\"]:not([disabled])",
+      "visual": true,
+      "impact": ["public/**", "server.js"]
     }
   ]
 }

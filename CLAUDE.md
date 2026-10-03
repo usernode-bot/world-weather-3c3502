@@ -116,9 +116,12 @@ default language is Indonesian, with English as the alternative.
   (`AGENCIES` in `public/app.js`).
 - Strings live in `STRINGS.id` / `STRINGS.en` in `public/app.js`. Add both
   whenever you add one.
-- No database tables. The chosen place, language and unit are kept in
-  `localStorage` (`ww.place`, `ww.lang`, `ww.unit`) and the place also in
+- The chosen place, language and unit are kept in `localStorage`
+  (`ww.place`, `ww.lang`, `ww.unit`) and the place also in
   `?place=<GeoNames id>`.
+- One database table, `favorites` (user id, GeoNames id, a JSON snapshot of
+  the place for drawing the list). It is marked `staging:private` because
+  saved places can reveal where someone lives, so staging starts empty.
 - Design: zinc neutrals, sky-600 as the one accent (it matches the icon),
   white/zinc-900 rounded-xl bordered panels under small uppercase section
   headers, Lucide line icons in the accent colour. Light and dark looks

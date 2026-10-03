@@ -26,4 +26,6 @@ the viewer's Homeroom locale, then the device, and can be changed in the app.
 The chosen place is kept in the address (`?place=<GeoNames id>`) and in
 `localStorage`.
 
-The app uses no database tables.
+- **Favorites.** The Save button on a report stars the place; the Favorites
+  button in the header lists saved places to reopen or remove. They are
+  stored per Homeroom user in the `favorites` table (`/api/favorites`).

@@ -1,11 +1,9 @@
 const express = require('express');
 const path = require('path');
-const { Pool } = require('pg');
 const jwt = require('jsonwebtoken');
 
 const app = express();
 const port = process.env.PORT || 3000;
-const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 
 // The platform signs user-identity tokens with an RSA private key it never
 // shares. Containers get only the PUBLIC half, so this app can verify who a
@@ -100,7 +98,10 @@ app.use((req, res, next) => {
   next();
 });
 
-app.get('/health', (_req, res) => res.json({ status: 'ok' }));
+app.get('/health', (_req, res) => {
+  if (shuttingDown) return res.status(503).json({ status: 'shutting_down' });
+  res.json({ status: 'ok' });
+});
 
 // The app icon lives in brand/ (read by the platform at deploy time);
 // public/favicon.svg + public/favicon.png are its browser-facing copies.
@@ -109,31 +110,228 @@ app.get('/health', (_req, res) => res.json({ status: 'ok' }));
 // catch-all and surfacing a 401 in the console on every fresh load.
 app.get('/favicon.ico', (_req, res) => res.sendFile(path.join(__dirname, 'public', 'favicon.png')));
 
-// Button press
-app.post('/api/press', async (req, res) => {
+// ---------------------------------------------------------------------------
+// Weather data. Every value the app shows comes from these live, keyless
+// sources; nothing is estimated or filled in here. A missing upstream value
+// stays null and the UI says it is unavailable.
+//   Open-Meteo geocoding  https://open-meteo.com/en/docs/geocoding-api
+//   Open-Meteo forecast   https://open-meteo.com/en/docs
+//   Open-Meteo air quality https://open-meteo.com/en/docs/air-quality-api
+//   NWS alerts (US only)  https://www.weather.gov/documentation/services-web-api
+// ---------------------------------------------------------------------------
+const GEOCODE_URL = 'https://geocoding-api.open-meteo.com/v1/search';
+const FORECAST_URL = 'https://api.open-meteo.com/v1/forecast';
+const AIR_URL = 'https://air-quality-api.open-meteo.com/v1/air-quality';
+const NWS_ALERTS_URL = 'https://api.weather.gov/alerts/active';
+// NWS covers the US and its territories; its API refuses points elsewhere.
+const NWS_COUNTRIES = new Set(['US', 'PR', 'GU', 'VI', 'AS', 'MP']);
+const UPSTREAM_TIMEOUT_MS = 10_000;
+
+// Small in-memory cache so repeated views of one place do not hammer the
+// upstreams. Weather is kept 10 minutes (Open-Meteo updates every 15), place
+// names a day.
+const cache = new Map();
+const CACHE_MAX = 500;
+function cached(key, ttlMs, load) {
+  const hit = cache.get(key);
+  if (hit && hit.expires > Date.now()) return hit.value;
+  const value = load().catch((err) => { cache.delete(key); throw err; });
+  cache.set(key, { value, expires: Date.now() + ttlMs });
+  if (cache.size > CACHE_MAX) cache.delete(cache.keys().next().value);
+  return value;
+}
+
+async function fetchJson(url, headers) {
+  const res = await fetch(url, { headers, signal: AbortSignal.timeout(UPSTREAM_TIMEOUT_MS) });
+  if (!res.ok) throw new Error(`${new URL(url).host} answered ${res.status}`);
+  return res.json();
+}
+
+function langParam(raw) {
+  return raw === 'en' ? 'en' : 'id';
+}
+
+function toPlace(r) {
+  return {
+    id: r.id,
+    name: r.name,
+    latitude: r.latitude,
+    longitude: r.longitude,
+    elevation: r.elevation ?? null,
+    featureCode: r.feature_code || null,
+    countryCode: r.country_code || null,
+    country: r.country || null,
+    // Broadest to narrowest, skipping levels GeoNames does not have.
+    admin: [r.admin1, r.admin2, r.admin3, r.admin4].filter(Boolean),
+    timezone: r.timezone || null,
+    population: r.population ?? null,
+  };
+}
+
+// One place by its GeoNames id, so a saved or shared location can be
+// reopened with its full name and region.
+async function placeById(id, lang) {
+  const url = `${GEOCODE_URL.replace(/search$/, 'get')}?id=${id}&language=${lang}`;
+  const r = await cached(`place:${lang}:${id}`, 86_400_000, () => fetchJson(url));
+  return r && r.id ? toPlace(r) : null;
+}
+
+function norm(s) {
+  return String(s || '').toLocaleLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+}
+
+// Open-Meteo matches the place name only, so "Ubud, Bali" finds nothing.
+// Search the first part and keep results whose region or country mention
+// every remaining part.
+async function geocode(query, lang) {
+  const [name, ...qualifiers] = query.split(',').map((p) => p.trim()).filter(Boolean);
+  if (!name) return [];
+  const url = `${GEOCODE_URL}?name=${encodeURIComponent(name)}&count=20&language=${lang}&format=json`;
+  const data = await cached(`geo:${lang}:${norm(name)}`, 86_400_000, () => fetchJson(url));
+  let results = Array.isArray(data.results) ? data.results : [];
+  if (qualifiers.length) {
+    results = results.filter((r) => {
+      const hay = norm([r.admin1, r.admin2, r.admin3, r.admin4, r.country, r.country_code].join(' '));
+      return qualifiers.every((q) => hay.includes(norm(q)));
+    });
+  }
+  return results.slice(0, 10).map(toPlace);
+}
+
+function distanceKm(lat1, lon1, lat2, lon2) {
+  const rad = (d) => (d * Math.PI) / 180;
+  const a = Math.sin(rad(lat2 - lat1) / 2) ** 2
+    + Math.cos(rad(lat1)) * Math.cos(rad(lat2)) * Math.sin(rad(lon2 - lon1) / 2) ** 2;
+  return 6371 * 2 * Math.asin(Math.sqrt(a));
+}
+
+const CURRENT_VARS = [
+  'temperature_2m', 'apparent_temperature', 'relative_humidity_2m', 'is_day',
+  'precipitation', 'weather_code', 'pressure_msl', 'wind_speed_10m',
+  'wind_direction_10m', 'wind_gusts_10m', 'visibility', 'uv_index',
+].join(',');
+const HOURLY_VARS = 'temperature_2m,precipitation_probability,precipitation,weather_code,is_day';
+const DAILY_VARS = [
+  'weather_code', 'temperature_2m_max', 'temperature_2m_min',
+  'precipitation_probability_max', 'precipitation_sum', 'sunrise', 'sunset', 'uv_index_max',
+].join(',');
+
+async function loadForecast(lat, lon) {
+  const url = `${FORECAST_URL}?latitude=${lat}&longitude=${lon}`
+    + `&current=${CURRENT_VARS}&hourly=${HOURLY_VARS}&daily=${DAILY_VARS}`
+    + '&timezone=auto&forecast_days=7&forecast_hours=24&wind_speed_unit=kmh';
+  return fetchJson(url);
+}
+
+async function loadAir(lat, lon) {
+  const url = `${AIR_URL}?latitude=${lat}&longitude=${lon}&current=us_aqi,pm2_5,pm10&timezone=auto`;
+  return fetchJson(url);
+}
+
+async function loadNwsAlerts(lat, lon) {
+  const url = `${NWS_ALERTS_URL}?point=${lat.toFixed(4)},${lon.toFixed(4)}`;
+  // NWS asks every client to identify itself with a User-Agent.
+  const data = await fetchJson(url, {
+    'User-Agent': 'World Weather (Homeroom app)',
+    Accept: 'application/geo+json',
+  });
+  return (data.features || []).map((f) => f.properties || {}).map((p) => ({
+    event: p.event || null,
+    headline: p.headline || null,
+    severity: p.severity || null,
+    issuer: p.senderName || null,
+    onset: p.onset || p.effective || null,
+    ends: p.ends || p.expires || null,
+    area: p.areaDesc || null,
+    instruction: p.instruction || null,
+  }));
+}
+
+async function weatherFor(lat, lon, countryCode) {
+  // Rounded to ~1 km so nearby lookups share a cache entry.
+  const key = `wx:${lat.toFixed(2)},${lon.toFixed(2)}:${countryCode || ''}`;
+  return cached(key, 600_000, async () => {
+    const wantAlerts = NWS_COUNTRIES.has(countryCode);
+    const [forecast, air, alerts] = await Promise.allSettled([
+      loadForecast(lat, lon),
+      loadAir(lat, lon),
+      wantAlerts ? loadNwsAlerts(lat, lon) : Promise.resolve(null),
+    ]);
+    if (forecast.status !== 'fulfilled') throw forecast.reason;
+    const f = forecast.value;
+    if (air.status !== 'fulfilled') console.warn('air quality failed: ' + air.reason.message);
+    if (alerts.status !== 'fulfilled') console.warn('NWS alerts failed: ' + alerts.reason.message);
+    const a = air.status === 'fulfilled' ? air.value : null;
+    return {
+      fetchedAt: new Date().toISOString(),
+      timezone: f.timezone,
+      timezoneAbbreviation: f.timezone_abbreviation,
+      utcOffsetSeconds: f.utc_offset_seconds,
+      // Open-Meteo answers for the model grid cell nearest the request, which
+      // can sit some way from a small village. Report how far.
+      grid: {
+        latitude: f.latitude,
+        longitude: f.longitude,
+        elevation: f.elevation ?? null,
+        distanceKm: Math.round(distanceKm(lat, lon, f.latitude, f.longitude) * 10) / 10,
+      },
+      current: f.current || null,
+      hourly: f.hourly || null,
+      daily: f.daily || null,
+      air: a && a.current ? {
+        time: a.current.time,
+        usAqi: a.current.us_aqi ?? null,
+        pm25: a.current.pm2_5 ?? null,
+        pm10: a.current.pm10 ?? null,
+        distanceKm: Math.round(distanceKm(lat, lon, a.latitude, a.longitude) * 10) / 10,
+      } : null,
+      alerts: {
+        // supported=false means no official alert feed is wired for this
+        // country, which is different from "the feed says nothing is active".
+        supported: wantAlerts && alerts.status === 'fulfilled',
+        source: wantAlerts ? 'NWS' : null,
+        items: alerts.status === 'fulfilled' && alerts.value ? alerts.value : [],
+      },
+    };
+  });
+}
+
+app.get('/api/geocode', async (req, res) => {
+  const q = String(req.query.q || '').trim().slice(0, 120);
+  if (q.length < 2) return res.status(400).json({ error: 'query_too_short' });
   try {
-    await pool.query(`
-      INSERT INTO presses (user_id, username) VALUES ($1, $2)
-    `, [req.user.id, req.user.username]);
-    res.json({ ok: true });
+    res.json({ results: await geocode(q, langParam(req.query.lang)) });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.warn('geocode failed: ' + err.message);
+    res.status(502).json({ error: 'upstream_failed' });
   }
 });
 
-// Leaderboard
-app.get('/api/leaderboard', async (_req, res) => {
+app.get('/api/place', async (req, res) => {
+  const id = Number(req.query.id);
+  if (!Number.isInteger(id) || id <= 0) return res.status(400).json({ error: 'invalid_id' });
   try {
-    const { rows } = await pool.query(`
-      SELECT username, COUNT(*) as presses
-      FROM presses
-      GROUP BY username
-      ORDER BY presses DESC
-      LIMIT 50
-    `);
-    res.json({ leaderboard: rows });
+    const place = await placeById(id, langParam(req.query.lang));
+    if (!place) return res.status(404).json({ error: 'not_found' });
+    res.json({ place });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.warn('place lookup failed: ' + err.message);
+    res.status(/ 404$/.test(err.message) ? 404 : 502).json({ error: 'upstream_failed' });
+  }
+});
+
+app.get('/api/weather', async (req, res) => {
+  const lat = Number(req.query.lat);
+  const lon = Number(req.query.lon);
+  if (!Number.isFinite(lat) || !Number.isFinite(lon) || Math.abs(lat) > 90 || Math.abs(lon) > 180) {
+    return res.status(400).json({ error: 'invalid_coordinates' });
+  }
+  const countryCode = /^[A-Za-z]{2}$/.test(req.query.cc || '') ? req.query.cc.toUpperCase() : null;
+  try {
+    res.json(await weatherFor(lat, lon, countryCode));
+  } catch (err) {
+    console.warn('weather failed: ' + err.message);
+    res.status(502).json({ error: 'upstream_failed' });
   }
 });
 
@@ -174,18 +372,25 @@ app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-async function start() {
-  await pool.query(`
-    CREATE TABLE IF NOT EXISTS presses (
-      id SERIAL PRIMARY KEY,
-      user_id INTEGER NOT NULL,
-      username VARCHAR(255) NOT NULL,
-      created_at TIMESTAMPTZ DEFAULT NOW()
-    )
-  `);
-  const server = app.listen(port, () => console.log(`Listening on :${port}`));
-  // Let Envoy retire idle upstream connections at 60s, with a 15s margin.
-  server.keepAliveTimeout = 75_000;
+const DRAIN_MS = 3000;
+let shuttingDown = false;
+
+const server = app.listen(port, () => console.log(`Listening on :${port}`));
+// Let Envoy retire idle upstream connections at 60s, with a 15s margin.
+server.keepAliveTimeout = 75_000;
+
+function shutdown(signal) {
+  if (shuttingDown) return;
+  shuttingDown = true;
+  console.log(`[shutdown] ${signal} received, draining`);
+  server.close(() => process.exit(0));
+  server.closeIdleConnections?.();
+  const t = setTimeout(() => {
+    server.closeAllConnections?.();
+    process.exit(0);
+  }, DRAIN_MS);
+  t.unref?.();
 }
 
-start().catch(err => { console.error(err); process.exit(1); });
+process.on('SIGTERM', () => shutdown('SIGTERM'));
+process.on('SIGINT', () => shutdown('SIGINT'));

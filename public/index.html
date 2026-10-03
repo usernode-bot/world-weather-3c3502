@@ -135,6 +135,10 @@
       <button type="submit" id="search-btn" class="rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-semibold px-4 py-2.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-zinc-950" data-i18n="searchButton">Cari</button>
     </form>
 
+    <!-- Favourite-city chips, rendered by app.js; hidden until at least one
+         favourite is saved. -->
+    <nav id="favs" class="hidden" aria-label="Kota favorit"></nav>
+
     <!-- Search results / pick-a-place list, status messages and the weather
          report are all rendered by app.js into these regions. -->
     <section id="results" class="hidden" aria-live="polite"></section>

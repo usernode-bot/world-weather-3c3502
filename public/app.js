@@ -14,6 +14,10 @@
       searchLabel: 'Cari lokasi',
       searchPlaceholder: 'Negara, kota, atau desa',
       searchButton: 'Cari',
+      favAdd: 'Tambahkan ke favorit',
+      favRemove: 'Hapus dari favorit',
+      favsLabel: 'Kota favorit',
+      favRemoveChip: 'Hapus',
       emptyTitle: 'Cari lokasi untuk melihat cuacanya',
       emptyBody: 'Ketik nama negara, kota, kecamatan, atau desa. Tambahkan wilayah setelah koma agar lebih tepat, misalnya "Ubud, Bali".',
       searching: 'Mencari lokasi…',
@@ -97,6 +101,10 @@
       searchLabel: 'Search for a place',
       searchPlaceholder: 'Country, city or village',
       searchButton: 'Search',
+      favAdd: 'Add to favourites',
+      favRemove: 'Remove from favourites',
+      favsLabel: 'Favourite cities',
+      favRemoveChip: 'Remove',
       emptyTitle: 'Search for a place to see its weather',
       emptyBody: 'Type a country, city, district or village. Add a region after a comma to narrow it down, for example "Ubud, Bali".',
       searching: 'Searching…',
@@ -321,6 +329,100 @@
       .filter(function (v) { return v && v !== p.name; }).join(', ');
   }
 
+  // ------------------------------------------------------- favourite places
+  // Saved in localStorage under ww.favs as [{ id, name, admin1, country,
+  // countryCode, latitude, longitude }], most recently added first, matching
+  // how ww.place / ww.lang / ww.unit are kept. Nothing reaches a server.
+  function loadFavs() {
+    try {
+      var v = JSON.parse(localStorage.getItem('ww.favs') || '[]');
+      if (!Array.isArray(v)) return [];
+      // Discard malformed entries so a hand-edited value cannot break rendering.
+      return v.filter(function (f) {
+        return f && Number.isInteger(f.id) && f.id > 0 && typeof f.name === 'string' && f.name;
+      });
+    } catch (_) { return []; }
+  }
+
+  function saveFavs(favs) {
+    try { localStorage.setItem('ww.favs', JSON.stringify(favs)); } catch (_) {}
+  }
+
+  // Membership is by id only, so a re-fetched place with changed coordinates
+  // still matches its favourite.
+  function isFav(id) {
+    return loadFavs().some(function (f) { return f.id === id; });
+  }
+
+  function favOf(p) {
+    return {
+      id: p.id,
+      name: p.name,
+      admin1: (p.admin && p.admin[0]) || null,
+      country: p.country || null,
+      countryCode: p.countryCode || null,
+      latitude: p.latitude,
+      longitude: p.longitude,
+    };
+  }
+
+  function toggleFav() {
+    var p = state.place;
+    if (!p || !Number.isInteger(p.id)) return;
+    var favs = loadFavs();
+    if (isFav(p.id)) favs = favs.filter(function (f) { return f.id !== p.id; });
+    else favs.unshift(favOf(p));
+    saveFavs(favs);
+    renderFavs();
+    syncStar();
+  }
+
+  function removeFav(id) {
+    saveFavs(loadFavs().filter(function (f) { return f.id !== id; }));
+    renderFavs();
+    syncStar();
+  }
+
+  // Keep the star button's icon and label in step without a full re-render,
+  // e.g. when its chip is removed while the place is on screen.
+  function syncStar() {
+    var btn = $('fav-toggle');
+    if (!btn) return;
+    var on = state.place && Number.isInteger(state.place.id) && isFav(state.place.id);
+    btn.innerHTML = icon('star', 'w-6 h-6 shrink-0 ' + (on ? 'text-sky-600 dark:text-sky-400' : 'text-zinc-400 dark:text-zinc-500'), on);
+    var label = t(on ? 'favRemove' : 'favAdd');
+    btn.title = label;
+    btn.setAttribute('aria-label', label);
+    btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+  }
+
+  function renderFavs() {
+    var el = $('favs');
+    if (!el) return;
+    var favs = loadFavs();
+    el.setAttribute('aria-label', t('favsLabel'));
+    if (!favs.length) { el.innerHTML = ''; show('favs', false); return; }
+    el.innerHTML = '<div class="flex flex-wrap gap-2">'
+      + favs.map(function (f) {
+        var sub = [f.admin1, f.country].filter(Boolean).join(', ');
+        return '<span class="inline-flex items-stretch rounded-full border border-zinc-200 bg-white hover:bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-900 dark:hover:bg-zinc-800/60">'
+          + '<button type="button" data-fav-open="' + f.id + '" class="un-pressable rounded-l-full py-1.5 pl-3.5 pr-2.5 text-left focus:outline-none focus-visible:bg-zinc-100 dark:focus-visible:bg-zinc-800">'
+          + '<span class="block text-sm font-semibold leading-tight">' + esc(f.name) + '</span>'
+          + (sub ? '<span class="block text-xs leading-tight text-zinc-600 dark:text-zinc-400">' + esc(sub) + '</span>' : '')
+          + '</button>'
+          + '<button type="button" data-fav-remove="' + f.id + '" class="rounded-r-full py-1.5 pl-1 pr-3 text-zinc-400 hover:text-zinc-600 focus:outline-none focus-visible:text-zinc-600 dark:text-zinc-500 dark:hover:text-zinc-300 dark:focus-visible:text-zinc-300" aria-label="' + esc(t('favRemoveChip')) + '">'
+          + icon('x', 'w-3.5 h-3.5') + '</button>'
+          + '</span>';
+      }).join('') + '</div>';
+    el.querySelectorAll('button[data-fav-open]').forEach(function (b) {
+      b.addEventListener('click', function () { openPlaceId(Number(b.dataset.favOpen)); });
+    });
+    el.querySelectorAll('button[data-fav-remove]').forEach(function (b) {
+      b.addEventListener('click', function () { removeFav(Number(b.dataset.favRemove)); });
+    });
+    show('favs', true);
+  }
+
   // Lucide icons (ISC licence), stroked in currentColor.
   var ICONS = {
     sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/>',
@@ -333,6 +435,8 @@
     snow: '<path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242"/><path d="M8 15h.01"/><path d="M8 19h.01"/><path d="M12 17h.01"/><path d="M12 21h.01"/><path d="M16 15h.01"/><path d="M16 19h.01"/>',
     storm: '<path d="M6 16.326A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 .5 8.973"/><path d="m13 12-3 5h4l-3 5"/>',
     alert: '<path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4"/><path d="M12 17h.01"/>',
+    star: '<polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>',
+    x: '<path d="M18 6 6 18"/><path d="m6 6 12 12"/>',
   };
   function iconFor(code, isDay) {
     if (!has(code)) return 'cloud';
@@ -346,8 +450,8 @@
     if (code >= 95) return 'storm';
     return 'cloud';
   }
-  function icon(name, cls) {
-    return '<svg class="' + cls + '" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + ICONS[name] + '</svg>';
+  function icon(name, cls, filled) {
+    return '<svg class="' + cls + '" viewBox="0 0 24 24" fill="' + (filled ? 'currentColor' : 'none') + '" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + ICONS[name] + '</svg>';
   }
 
   async function api(path) {
@@ -455,7 +559,8 @@
     if (w.grid && w.grid.distanceKm >= 1) notes.push(t('gridNote', { d: num(w.grid.distanceKm, w.grid.distanceKm < 10 ? 1 : 0) }));
     html += '<section id="location">'
       + '<div class="flex items-baseline gap-2 flex-wrap"><h2 class="text-xl font-bold" id="place-name">' + esc(p.name) + '</h2>'
-      + '<span class="text-xs text-zinc-500 dark:text-zinc-400">' + esc(placeKind(p.featureCode)) + '</span></div>'
+      + '<span class="text-xs text-zinc-500 dark:text-zinc-400">' + esc(placeKind(p.featureCode)) + '</span>'
+      + '<button type="button" id="fav-toggle" class="un-pressable self-center shrink-0 rounded-lg p-1 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500"></button></div>'
       + (hierarchy(p) ? '<p class="text-sm text-zinc-600 dark:text-zinc-400">' + esc(hierarchy(p)) + '</p>' : '')
       + '<p class="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">' + esc(t('coords', {
         lat: num(p.latitude, 4), lon: num(p.longitude, 4), e: has(p.elevation) ? num(p.elevation) : '-',
@@ -574,6 +679,7 @@
 
     $('report').innerHTML = html;
     show('report', true);
+    syncStar();
   }
 
   // When this app fetched the data, in the place's own time zone so it reads
@@ -685,6 +791,11 @@
     $('search-input').blur();
     search($('search-input').value);
   });
+  // renderReport() rewrites the report's HTML, so the star toggle is wired by
+  // delegation instead of per render.
+  $('report').addEventListener('click', function (e) {
+    if (e.target.closest('#fav-toggle')) toggleFav();
+  });
   $('lang-toggle').addEventListener('click', function (e) {
     var b = e.target.closest('button[data-lang]');
     if (!b) return;
@@ -705,6 +816,10 @@
     var changed = state.lang !== lang;
     state.lang = lang;
     renderStatic();
+    // Chip and star labels follow the new language; the saved place names
+    // themselves stay as they were when favourited.
+    renderFavs();
+    syncStar();
     if (!changed) return;
     // Place names come back in the chosen language too, so reload whatever
     // is on screen (or still loading) rather than only relabelling it.
@@ -714,6 +829,7 @@
   }
 
   renderStatic();
+  renderFavs();
 
   // The viewer's Homeroom language, when set, outranks the device guess
   // (an explicit choice in this app outranks both).

@@ -1,28 +1,51 @@
 # World Weather
 
-> **Starter template** — this repo was scaffolded by Homeroom Social
-> Vibecoding. Everything in it is placeholder example code until the
-> app's first real feature is built.
+Real-time weather information for any location worldwide, from countries
+to villages. Built on Homeroom.
 
-The scaffold is a small working demo that proves the plumbing works:
+The app has one screen with one job: pick a place anywhere in the world
+and see its weather.
 
-- **Sign-in** — the server verifies the platform-issued user token
-  (an RS256 JWT) on every request, so the app already knows who is
-  using it. No accounts to build.
-- **Database** — the app has its own private Postgres database; the
-  demo stores button presses in a `presses` table.
-- **Live API** — two example routes (`/api/press`,
-  `/api/leaderboard`) read and write through a real Express server.
-- **Styling** — Tailwind CSS, precompiled by `npm run build` during
-  image creation with either Kubernetes/Paketo or standalone Docker, in a
-  light and a dark look that follow the viewer's Homeroom theme.
+- **Search** — type a place name (desa, kota, kecamatan, or negara) and
+  get up to 10 matches with their administrative chain, e.g.
+  "Sukamaju, Kecamatan X, Kabupaten Y, Jawa Barat, Indonesia". Common
+  village names are resolved by picking the right match from the list.
+  When a village name has no exact match, the nearest matching
+  settlements are offered instead, with the distance shown.
+- **Weather view** — current conditions (condition, temperature and
+  feels-like, humidity, wind with an Indonesian compass direction,
+  pressure, visibility, UV index, precipitation), a 24-hour strip and a
+  7-day list (min/max, rain chance), sunrise/sunset in the location's
+  own time zone, the air quality (US AQI with a category) where
+  available, and one short advice line. Units are metric.
 
-## Replacing the template
+All copy is Indonesian. The screen follows the viewer's Homeroom light
+or dark theme.
 
-Open the app on Homeroom, tap the Homeroom icon in the header, choose
-**Start a new change**, and describe the app you want in plain English.
-The template will be replaced with your real app. You can also run
-Claude Code against this repo directly; start with `CLAUDE.md`, which
-carries the app-specific notes and points at the platform rules.
+## Data source
 
-Once the real app exists, rewrite this README to describe it.
+All data comes from [Open-Meteo](https://open-meteo.com) (geocoding,
+forecast and air-quality endpoints), fetched server-side by the app with
+a 10-minute cache to respect the free API's rate limits. The source and
+the data's update time are shown at the bottom of the weather view.
+
+**Warnings are derived, not official.** The early-warning section is
+computed automatically from the forecast with fixed thresholds (heavy
+rain, thunderstorm, strong wind, extreme heat, fog, unhealthy air). It
+is never a release from a meteorological institution; the app always
+points to BMKG (bmkg.go.id) or the local authority for official alerts
+and for emergencies such as flooding, earthquakes or tsunami.
+
+## API
+
+Two authenticated routes (behind the platform JWT, like everything under
+`/api/`):
+
+- `GET /api/geocode?q=<name>` — place-name search, returns matches with
+  their administrative chain and coordinates.
+- `GET /api/weather?lat=..&lon=..&name=..` — shaped weather response:
+  current block, 24-hour and 7-day series, derived warnings, air
+  quality, advice line, and the forecast update time.
+
+No database tables are used by the app screen (the scaffold's `presses`
+table and its boot-time creation remain but nothing writes to it).

@@ -1,4 +1,19 @@
 {
   "description": "Real-time weather information for any location worldwide, from countries to villages",
-  "secrets": []
+  "secrets": [],
+  "tests": [
+    {
+      "id": "home.search",
+      "name": "Search screen renders",
+      "path": "/",
+      "expectSelector": "#search-form",
+      "visual": true,
+      "impact": ["public/index.html", "server.js"]
+    },
+    {
+      "name": "Search heading present",
+      "path": "/",
+      "expectText": "World Weather"
+    }
+  ]
 }

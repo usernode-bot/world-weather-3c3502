@@ -109,32 +109,297 @@ app.get('/health', (_req, res) => res.json({ status: 'ok' }));
 // fresh load.
 app.get('/favicon.ico', (_req, res) => res.status(204).end());
 
-// Button press
-app.post('/api/press', async (req, res) => {
+// World Weather talks to Open-Meteo (free, keyless, and named as an
+// acceptable source in the app's request). Both routes below wrap it: the
+// server shapes one response the frontend renders as-is, so no weather
+// logic lives in the browser and the free API's rate limits are the
+// server's problem, not the viewer's.
+const UPSTREAM_TIMEOUT_MS = 10_000;
+const GEOCODE_URL = 'https://geocoding-api.open-meteo.com/v1/search';
+const FORECAST_URL = 'https://api.open-meteo.com/v1/forecast';
+const AIR_QUALITY_URL = 'https://air-quality-api.open-meteo.com/v1/air-quality';
+
+// The data-service error the frontend shows verbatim; any upstream failure
+// (non-200, empty body, timeout) maps to it.
+const UPSTREAM_ERROR = 'Data cuaca tidak dapat diambil saat ini. Coba lagi nanti.';
+
+async function fetchUpstreamJson(url) {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), UPSTREAM_TIMEOUT_MS);
   try {
-    await pool.query(`
-      INSERT INTO presses (user_id, username) VALUES ($1, $2)
-    `, [req.user.id, req.user.username]);
-    res.json({ ok: true });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
+    const res = await fetch(url, { signal: ctrl.signal });
+    if (!res.ok) return null;
+    return await res.json();
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(timer);
   }
+}
+
+// GET /api/geocode?q=<name> — turn a place name into up to 10 matches with
+// their administrative chain (country > admin1 > … > admin4), so an
+// ambiguous village name can be resolved by the viewer instead of guessed.
+// No language parameter is passed: Open-Meteo then returns place names in
+// their local form, which is what an Indonesian village search wants.
+app.get('/api/geocode', async (req, res) => {
+  const q = String(req.query.q || '').trim();
+  if (!q) return res.status(400).json({ error: 'Nama lokasi yang dicari masih kosong.' });
+
+  const geocodeUrl = new URL(GEOCODE_URL);
+  geocodeUrl.searchParams.set('name', q);
+  geocodeUrl.searchParams.set('count', '10');
+  geocodeUrl.searchParams.set('format', 'json');
+
+  const data = await fetchUpstreamJson(geocodeUrl);
+  if (data === null) {
+    return res.status(502).json({ error: 'Pencarian lokasi gagal. Coba lagi nanti.' });
+  }
+  const results = (Array.isArray(data.results) ? data.results : []).map((r) => ({
+    name: r.name,
+    latitude: r.latitude,
+    longitude: r.longitude,
+    timezone: r.timezone,
+    country: r.country,
+    countryCode: r.country_code,
+    admin1: r.admin1,
+    admin2: r.admin2,
+    admin3: r.admin3,
+    admin4: r.admin4,
+    // Passed through only when Open-Meteo supplies it (it reports how far
+    // the match sits from the queried name's best guess).
+    ...(r.distance != null ? { distance: r.distance } : {}),
+  }));
+  return res.json({ query: q, results });
 });
 
-// Leaderboard
-app.get('/api/leaderboard', async (_req, res) => {
-  try {
-    const { rows } = await pool.query(`
-      SELECT username, COUNT(*) as presses
-      FROM presses
-      GROUP BY username
-      ORDER BY presses DESC
-      LIMIT 50
-    `);
-    res.json({ leaderboard: rows });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
+// A small in-memory cache so back-to-back views of the same place don't
+// hammer the free API. Keyed by coordinates rounded to 2 decimals
+// (roughly 1 km), 10-minute TTL, capped at 50 entries. Server-side only:
+// the place name is echoed from the request on every response (see
+// buildLocation below), so a cache hit never shows another place's name.
+const WEATHER_CACHE_TTL_MS = 10 * 60 * 1000;
+const WEATHER_CACHE_MAX = 50;
+const weatherCache = new Map();
+
+function cacheGetWeather(key) {
+  const hit = weatherCache.get(key);
+  if (!hit) return null;
+  if (Date.now() - hit.at > WEATHER_CACHE_TTL_MS) {
+    weatherCache.delete(key);
+    return null;
   }
+  return hit.payload;
+}
+
+function cacheSetWeather(key, payload) {
+  weatherCache.set(key, { at: Date.now(), payload });
+  if (weatherCache.size > WEATHER_CACHE_MAX) {
+    const oldest = weatherCache.keys().next().value;
+    weatherCache.delete(oldest);
+  }
+}
+
+// Echo back who the viewer asked about. The admin chain comes from the
+// geocode match the viewer picked (passed as query params); the time zone
+// comes from the forecast response itself.
+function buildLocation(req, timezone) {
+  const pick = (key) => {
+    const value = String(req.query[key] || '').trim();
+    return value || undefined;
+  };
+  return {
+    name: pick('name'),
+    admin1: pick('admin1'),
+    admin2: pick('admin2'),
+    admin3: pick('admin3'),
+    admin4: pick('admin4'),
+    country: pick('country'),
+    countryCode: pick('countryCode'),
+    timezone,
+  };
+}
+
+// True when the upstream value exists at all (a legitimate `null` in the
+// forecast means "no data", and must not turn into a number).
+const has = (v) => v != null;
+
+function aqiCategory(aqi) {
+  if (aqi <= 50) return 'Baik';
+  if (aqi <= 100) return 'Sedang';
+  if (aqi <= 150) return 'Tidak Sehat';
+  if (aqi <= 200) return 'Sangat Tidak Sehat';
+  return 'Berbahaya';
+}
+
+// Warnings derived from forecast data with fixed thresholds (the heavy-rain
+// one is BMKG's 24-hour figure). Every entry is labeled non-official by the
+// standing line the frontend renders under the list; the app fetches no
+// institution's alert feed, so it must never look like one.
+function buildWarnings(current, today, air) {
+  const warnings = [];
+  const inRange = (code, lo, hi) => has(code) && code >= lo && code <= hi;
+
+  if (inRange(current.weather_code, 95, 99) || inRange(today.code, 95, 99)) {
+    warnings.push({ level: 'Awas', kind: 'badai petir', text: 'Badai petir diprakirakan terjadi hari ini.' });
+  }
+  if (has(today.precipSum) && today.precipSum >= 50) {
+    warnings.push({ level: 'Waspada', kind: 'hujan lebat', text: 'Potensi hujan lebat, akumulasi curah hujan sekitar ' + Math.round(today.precipSum) + ' mm dalam 24 jam.' });
+  }
+  const windNow = has(current.wind_speed) ? current.wind_speed : 0;
+  const windToday = has(today.windMax) ? today.windMax : 0;
+  const windMax = Math.max(windNow, windToday);
+  if (windMax >= 60) {
+    warnings.push({ level: 'Awas', kind: 'angin kencang', text: 'Angin kencang hingga sekitar ' + Math.round(windMax) + ' km/jam.' });
+  } else if (windMax >= 40) {
+    warnings.push({ level: 'Waspada', kind: 'angin kencang', text: 'Angin cukup kencang hingga sekitar ' + Math.round(windMax) + ' km/jam.' });
+  }
+  const heatNow = has(current.apparent_temperature) ? current.apparent_temperature : -Infinity;
+  const heatToday = has(today.apparentMax) ? today.apparentMax : -Infinity;
+  const heatMax = Math.max(heatNow, heatToday);
+  if (heatMax >= 40) {
+    warnings.push({ level: 'Waspada', kind: 'panas ekstrem', text: 'Suhu terasa hingga sekitar ' + Math.round(heatMax) + ' °C, berpotensi panas ekstrem.' });
+  }
+  if (current.weather_code === 45 || current.weather_code === 48 || today.code === 45 || today.code === 48) {
+    warnings.push({ level: 'Waspada', kind: 'kabut', text: 'Kabut diprakirakan menurunkan jarak pandang.' });
+  }
+  if (air && has(air.aqi) && air.aqi > 150) {
+    warnings.push({ level: 'Waspada', kind: 'udara tidak sehat', text: 'Kualitas udara tidak sehat (US AQI ' + air.aqi + ', ' + air.category + ').' });
+  }
+  return warnings;
+}
+
+// One short advice line from today's data.
+function buildSaran(current, today) {
+  const rainLikely = (has(today.precipProbability) && today.precipProbability >= 50)
+    || (has(current.precipitation) && current.precipitation > 0)
+    || (has(today.precipSum) && today.precipSum > 0);
+  if (rainLikely) return 'Bawa payung.';
+  if (has(today.uvIndexMax) && today.uvIndexMax >= 6) return 'Gunakan tabir surya.';
+  if (has(current.apparent_temperature) && current.apparent_temperature <= 10) return 'Gunakan jaket.';
+  return 'Cuaca nyaman untuk aktivitas luar.';
+}
+
+// GET /api/weather?lat=..&lon=..&name=..[&admin1..admin4&country&countryCode]
+app.get('/api/weather', async (req, res) => {
+  const lat = Number(req.query.lat);
+  const lon = Number(req.query.lon);
+  if (!Number.isFinite(lat) || !Number.isFinite(lon)
+    || lat < -90 || lat > 90 || lon < -180 || lon > 180) {
+    return res.status(400).json({ error: 'Koordinat lokasi tidak valid.' });
+  }
+
+  const cacheKey = lat.toFixed(2) + ',' + lon.toFixed(2);
+  const cached = cacheGetWeather(cacheKey);
+  if (cached) {
+    return res.json({ ...cached, location: buildLocation(req, cached.timezone) });
+  }
+
+  // Metric defaults apply upstream: °C, km/h, mm. Timezone auto resolves to
+  // the location's own zone, per the request. The air-quality call runs
+  // alongside the forecast but its failure never blocks the forecast:
+  // remote places can come back without an AQI, and that is fine.
+  const forecastUrl = new URL(FORECAST_URL);
+  forecastUrl.searchParams.set('latitude', lat);
+  forecastUrl.searchParams.set('longitude', lon);
+  forecastUrl.searchParams.set('current', 'temperature_2m,relative_humidity_2m,apparent_temperature,precipitation,weather_code,pressure_msl,wind_speed_10m,wind_direction_10m');
+  forecastUrl.searchParams.set('hourly', 'temperature_2m,precipitation_probability,weather_code,visibility');
+  forecastUrl.searchParams.set('daily', 'weather_code,temperature_2m_max,temperature_2m_min,apparent_temperature_max,precipitation_probability_max,precipitation_sum,wind_speed_10m_max,uv_index_max,sunrise,sunset');
+  forecastUrl.searchParams.set('timezone', 'auto');
+  forecastUrl.searchParams.set('forecast_days', '7');
+
+  const airUrl = new URL(AIR_QUALITY_URL);
+  airUrl.searchParams.set('latitude', lat);
+  airUrl.searchParams.set('longitude', lon);
+  airUrl.searchParams.set('current', 'us_aqi,pm2_5,pm10');
+  airUrl.searchParams.set('timezone', 'auto');
+
+  const [forecastSettled, airSettled] = await Promise.allSettled([
+    fetchUpstreamJson(forecastUrl),
+    fetchUpstreamJson(airUrl),
+  ]);
+
+  const forecast = forecastSettled.status === 'fulfilled' ? forecastSettled.value : null;
+  if (!forecast || !forecast.current || !Array.isArray(forecast.daily?.time) || !forecast.daily.time.length) {
+    return res.status(502).json({ error: UPSTREAM_ERROR });
+  }
+  const airBody = airSettled.status === 'fulfilled' ? airSettled.value : null;
+  const airAqi = airBody && airBody.current && airBody.current.us_aqi != null
+    ? airBody.current.us_aqi : null;
+  const air = airAqi != null ? { aqi: Math.round(airAqi), category: aqiCategory(airAqi) } : undefined;
+
+  const cur = forecast.current;
+  const hourly = forecast.hourly || {};
+  const daily = forecast.daily;
+  const timezone = forecast.timezone;
+
+  // The current block carries no visibility; take it from the hourly slice
+  // covering now (meters to km, one decimal).
+  const hourTimes = Array.isArray(hourly.time) ? hourly.time : [];
+  const nowHour = (cur.time || '').slice(0, 13) + ':00';
+  let hourIdx = hourTimes.indexOf(nowHour);
+  if (hourIdx < 0) hourIdx = hourTimes.findIndex((t) => t >= (cur.time || ''));
+  if (hourIdx < 0) hourIdx = 0;
+
+  const visMeters = hourly.visibility && hourly.visibility[hourIdx];
+  const visibilityKm = visMeters != null ? Math.round(visMeters / 100) / 10 : undefined;
+
+  const currentOut = {
+    temperature: cur.temperature_2m,
+    apparentTemperature: cur.apparent_temperature,
+    humidity: cur.relative_humidity_2m,
+    precipitation: cur.precipitation,
+    weatherCode: cur.weather_code,
+    pressure: cur.pressure_msl,
+    windSpeed: cur.wind_speed_10m,
+    windDirection: cur.wind_direction_10m,
+    visibilityKm,
+    uvIndex: Array.isArray(daily.uv_index_max) ? daily.uv_index_max[0] : undefined,
+  };
+
+  const hourly24 = hourTimes.slice(hourIdx, hourIdx + 24).map((time, i) => ({
+    time,
+    temperature: hourly.temperature_2m ? hourly.temperature_2m[hourIdx + i] : null,
+    precipProbability: hourly.precipitation_probability ? hourly.precipitation_probability[hourIdx + i] : null,
+    weatherCode: hourly.weather_code ? hourly.weather_code[hourIdx + i] : null,
+  }));
+
+  const daily7 = daily.time.slice(0, 7).map((date, i) => ({
+    date,
+    code: daily.weather_code ? daily.weather_code[i] : null,
+    tempMin: daily.temperature_2m_min ? daily.temperature_2m_min[i] : null,
+    tempMax: daily.temperature_2m_max ? daily.temperature_2m_max[i] : null,
+    precipProbability: daily.precipitation_probability_max ? daily.precipitation_probability_max[i] : null,
+    precipSum: daily.precipitation_sum ? daily.precipitation_sum[i] : null,
+    windMax: daily.wind_speed_10m_max ? daily.wind_speed_10m_max[i] : null,
+    uvIndexMax: daily.uv_index_max ? daily.uv_index_max[i] : null,
+    apparentMax: daily.apparent_temperature_max ? daily.apparent_temperature_max[i] : null,
+    // The INFO TAMBAHAN section shows today's sunrise/sunset in the
+    // location's own time zone; the upstream values are already local.
+    sunrise: daily.sunrise ? daily.sunrise[i] : null,
+    sunset: daily.sunset ? daily.sunset[i] : null,
+  }));
+
+  const today = daily7[0];
+  const warnings = buildWarnings(cur, today, air);
+  const saran = buildSaran(cur, today);
+
+  // Everything except `location`: the payload is what the cache holds, and
+  // the requester's name/chain is attached fresh on every response so a
+  // cache hit can never show a different place's name than requested.
+  const payload = {
+    current: currentOut,
+    hourly24,
+    daily7,
+    warnings,
+    air,
+    saran,
+    fetchedAt: cur.time,
+    timezone,
+    source: 'Open-Meteo',
+  };
+  cacheSetWeather(cacheKey, payload);
+  return res.json({ ...payload, location: buildLocation(req, timezone) });
 });
 
 app.use(express.static(path.join(__dirname, 'public')));

@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="id">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  
+
   <script>
   // usernode-dev-console@1
   (function () {
@@ -110,100 +110,360 @@
 <body class="bg-zinc-50 text-zinc-900 dark:bg-zinc-950 dark:text-zinc-100 min-h-screen">
   <main class="max-w-md mx-auto px-4 py-10 flex flex-col gap-6">
 
-    <!-- usernode-starter-notice@1 — starter-template messaging. When building
-         the user's real app, replace this whole screen and delete this block,
-         both sentinel comments included. -->
-    <section class="rounded-2xl border border-violet-500/30 bg-gradient-to-b from-violet-600/10 dark:from-violet-600/20 to-transparent p-6 text-center flex flex-col items-center gap-3">
-      <span class="inline-block rounded-full bg-violet-600/10 text-violet-700 dark:bg-violet-600/20 dark:text-violet-300 text-xs font-semibold uppercase tracking-wide px-3 py-1">Starter template</span>
+    <header class="flex flex-col gap-1">
       <h1 class="text-2xl font-bold">World Weather</h1>
-      <p class="text-sm text-zinc-600 dark:text-zinc-300 leading-relaxed">Welcome to your new app! Everything on this screen is placeholder content that came with it.</p>
-      <p class="text-sm text-zinc-600 dark:text-zinc-300 leading-relaxed">Tap the <strong class="text-violet-700 dark:text-violet-300 font-semibold">Homeroom icon</strong> in the header and choose <strong class="text-violet-700 dark:text-violet-300 font-semibold">Start a new change</strong> to start building your app. Describe what you'd like in plain English, and it will be turned into your real app.</p>
+      <p class="text-sm text-zinc-600 dark:text-zinc-400">Informasi cuaca untuk lokasi mana pun di dunia, dari negara sampai desa.</p>
+    </header>
+
+    <!-- SEARCH VIEW: the box, its loading state, the pick list of matches
+         and the not-found message all live here. -->
+    <section id="view-search" class="flex flex-col gap-4">
+      <form id="search-form" autocomplete="off" class="rounded-xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900/60 p-4 flex flex-col gap-3">
+        <label for="search-input" class="sr-only">Lokasi yang dicari</label>
+        <div class="flex gap-2">
+          <input id="search-input" type="text" placeholder="Cari lokasi: desa, kota, kecamatan, atau negara"
+                 class="flex-1 min-w-0 rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm placeholder:text-zinc-400 focus:border-violet-600 focus:outline-none focus:ring-2 focus:ring-violet-600/30 dark:border-zinc-700 dark:bg-zinc-950 dark:placeholder:text-zinc-600" />
+          <button type="submit" class="shrink-0 rounded-lg bg-violet-600 hover:bg-violet-500 active:scale-95 transition-all text-white text-sm font-semibold px-4 py-2">Cari</button>
+        </div>
+        <p class="text-xs text-zinc-500 dark:text-zinc-600">Contoh: Penglipuran, Bangli, Bali, Indonesia</p>
+      </form>
+
+      <div id="search-status" class="hidden" role="status" aria-live="polite"></div>
+
+      <div id="search-results" class="hidden rounded-xl border border-zinc-200 bg-white divide-y divide-zinc-200 dark:border-zinc-800 dark:bg-zinc-900/60 dark:divide-zinc-800"></div>
     </section>
 
-    <section>
-      <h2 class="text-sm font-medium text-zinc-500 mb-2 px-1">What's already working</h2>
-      <div class="rounded-xl border border-zinc-200 bg-white divide-y divide-zinc-200 dark:border-zinc-800 dark:bg-zinc-900/60 dark:divide-zinc-800">
-        <div class="flex items-start gap-3 p-4">
-          <svg class="w-5 h-5 text-violet-600 dark:text-violet-400 shrink-0 mt-0.5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M16.7 5.3a1 1 0 0 1 0 1.4l-7 7a1 1 0 0 1-1.4 0l-3-3a1 1 0 1 1 1.4-1.4L9 11.6l6.3-6.3a1 1 0 0 1 1.4 0Z" clip-rule="evenodd"/></svg>
-          <div>
-            <p class="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Sign-in</p>
-            <p class="text-sm text-zinc-600 dark:text-zinc-400">You're signed in through Homeroom automatically — no accounts to build.</p>
+    <!-- WEATHER VIEW: replaces the search view once a place is picked.
+         Loading, error and data states are separate blocks inside it. -->
+    <section id="view-weather" class="hidden flex flex-col gap-4">
+      <header class="flex flex-col gap-1">
+        <h2 id="w-name" class="text-xl font-bold"></h2>
+        <p id="w-chain" class="text-sm text-zinc-500 dark:text-zinc-400"></p>
+      </header>
+
+      <p id="w-loading" class="hidden text-sm text-zinc-500 dark:text-zinc-400" role="status">Memuat cuaca...</p>
+
+      <p id="w-error" class="hidden rounded-xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900/60 p-4 text-sm">Data cuaca tidak dapat diambil saat ini. Coba lagi nanti.</p>
+
+      <div id="w-body" class="hidden flex flex-col gap-4">
+
+        <section class="rounded-xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900/60 p-5 flex flex-col gap-4">
+          <h3 class="text-sm font-semibold text-zinc-500 dark:text-zinc-400">CUACA SAAT INI</h3>
+          <div class="flex items-center gap-4">
+            <span id="w-now-icon" class="w-12 h-12 shrink-0 text-violet-600 dark:text-violet-400" aria-hidden="true"></span>
+            <div class="flex flex-col gap-1">
+              <span id="w-now-temp" class="text-4xl font-bold leading-none"></span>
+              <span id="w-now-cond" class="text-sm text-zinc-600 dark:text-zinc-400"></span>
+            </div>
           </div>
-        </div>
-        <div class="flex items-start gap-3 p-4">
-          <svg class="w-5 h-5 text-violet-600 dark:text-violet-400 shrink-0 mt-0.5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M16.7 5.3a1 1 0 0 1 0 1.4l-7 7a1 1 0 0 1-1.4 0l-3-3a1 1 0 1 1 1.4-1.4L9 11.6l6.3-6.3a1 1 0 0 1 1.4 0Z" clip-rule="evenodd"/></svg>
-          <div>
-            <p class="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Database</p>
-            <p class="text-sm text-zinc-600 dark:text-zinc-400">Your app has its own private database, ready to store things.</p>
+          <dl id="w-now-rows" class="text-sm divide-y divide-zinc-200 dark:divide-zinc-800"></dl>
+        </section>
+
+        <section class="rounded-xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900/60 p-5 flex flex-col gap-4">
+          <h3 class="text-sm font-semibold text-zinc-500 dark:text-zinc-400">PRAKIRAAN</h3>
+          <div class="flex flex-col gap-2">
+            <h4 class="text-sm font-medium text-zinc-500 dark:text-zinc-400">24 jam ke depan</h4>
+            <div id="w-hourly" class="flex gap-2 overflow-x-auto pb-1"></div>
           </div>
-        </div>
-        <div class="flex items-start gap-3 p-4">
-          <svg class="w-5 h-5 text-violet-600 dark:text-violet-400 shrink-0 mt-0.5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M16.7 5.3a1 1 0 0 1 0 1.4l-7 7a1 1 0 0 1-1.4 0l-3-3a1 1 0 1 1 1.4-1.4L9 11.6l6.3-6.3a1 1 0 0 1 1.4 0Z" clip-rule="evenodd"/></svg>
-          <div>
-            <p class="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Live API</p>
-            <p class="text-sm text-zinc-600 dark:text-zinc-400">The example below talks to a real server — try it.</p>
+          <div class="flex flex-col gap-2">
+            <h4 class="text-sm font-medium text-zinc-500 dark:text-zinc-400">7 hari ke depan</h4>
+            <dl id="w-daily" class="text-sm divide-y divide-zinc-200 dark:divide-zinc-800"></dl>
+            <p class="text-xs text-zinc-500 dark:text-zinc-600">Prakiraan hari ke-4 sampai ke-7 kurang pasti.</p>
           </div>
-        </div>
+        </section>
+
+        <section id="w-warn-card" class="hidden rounded-xl border border-violet-500/30 bg-violet-600/10 dark:bg-violet-600/20 p-5 flex flex-col gap-3">
+          <h3 class="text-sm font-semibold text-violet-700 dark:text-violet-300">PERINGATAN DINI</h3>
+          <ul id="w-warnings" class="flex flex-col gap-3 text-sm"></ul>
+          <p class="text-xs text-zinc-600 dark:text-zinc-400">Peringatan otomatis berbasis prakiraan, bukan rilis resmi; ikuti BMKG (bmkg.go.id) atau otoritas setempat untuk peringatan resmi dan keadaan darurat (banjir, gempa, tsunami).</p>
+        </section>
+
+        <section class="rounded-xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900/60 p-5 flex flex-col gap-3">
+          <h3 class="text-sm font-semibold text-zinc-500 dark:text-zinc-400">INFO TAMBAHAN</h3>
+          <dl id="w-info-rows" class="text-sm divide-y divide-zinc-200 dark:divide-zinc-800"></dl>
+        </section>
+
+        <p id="w-source" class="text-xs text-zinc-500 dark:text-zinc-600 text-center"></p>
       </div>
+
+      <button id="back-btn" type="button" class="self-center rounded text-sm font-semibold text-violet-700 dark:text-violet-300 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-600/40">Cari lokasi lain</button>
     </section>
-    <!-- /usernode-starter-notice@1 -->
-
-    <section class="rounded-xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900/60 p-5 flex flex-col items-center gap-5">
-      <div class="w-full flex items-baseline justify-between gap-2">
-        <h2 class="text-sm font-medium text-zinc-500">Try the example</h2>
-        <span class="text-xs text-zinc-500 dark:text-zinc-600">This example will be replaced</span>
-      </div>
-
-      <button id="press-btn" class="w-32 h-32 rounded-full bg-violet-600 hover:bg-violet-500 active:scale-95 transition-all text-white text-xl font-bold shadow-lg shadow-violet-600/30">
-        Press!
-      </button>
-
-      <div id="count" class="text-lg text-zinc-600 dark:text-zinc-400">0 total presses</div>
-
-      <div class="w-full max-w-sm">
-        <h3 class="text-sm font-medium text-zinc-500 mb-2 text-center">Leaderboard</h3>
-        <div id="leaderboard" class="space-y-1"></div>
-      </div>
-    </section>
-
-    <p class="text-center text-xs text-zinc-500 dark:text-zinc-600">Built on Homeroom — this template screen disappears once you build your real app.</p>
   </main>
 
   <script>
-    const params = new URLSearchParams(window.location.search);
-    const token = params.get('token') || '';
-    const headers = token ? { 'x-usernode-token': token } : {};
+  (function () {
+    var params = new URLSearchParams(window.location.search);
+    var token = params.get('token') || '';
+    var headers = token ? { 'x-usernode-token': token } : {};
 
-    async function loadLeaderboard() {
-      const res = await fetch('/api/leaderboard', { headers });
-      if (!res.ok) return;
-      const { leaderboard } = await res.json();
-      const el = document.getElementById('leaderboard');
-      if (!leaderboard.length) {
-        el.innerHTML = '<p class="text-center text-zinc-500 dark:text-zinc-600 text-sm">No presses yet</p>';
-        return;
-      }
-      el.innerHTML = leaderboard.map((r, i) =>
-        '<div class="flex justify-between px-3 py-1 rounded ' + (i === 0 ? 'bg-violet-600/10 text-violet-700 dark:bg-violet-600/20 dark:text-violet-300' : 'text-zinc-600 dark:text-zinc-400') + '">' +
-        '<span>' + (i + 1) + '. ' + r.username + '</span>' +
-        '<span class="font-mono">' + r.presses + '</span></div>'
-      ).join('');
-      const total = leaderboard.reduce((s, r) => s + parseInt(r.presses), 0);
-      document.getElementById('count').textContent = total + ' total presses';
+    var viewSearch = document.getElementById('view-search');
+    var viewWeather = document.getElementById('view-weather');
+    var searchForm = document.getElementById('search-form');
+    var searchInput = document.getElementById('search-input');
+    var searchStatus = document.getElementById('search-status');
+    var searchResults = document.getElementById('search-results');
+    var wName = document.getElementById('w-name');
+    var wChain = document.getElementById('w-chain');
+    var wLoading = document.getElementById('w-loading');
+    var wError = document.getElementById('w-error');
+    var wBody = document.getElementById('w-body');
+    var backBtn = document.getElementById('back-btn');
+
+    var NA = 'tidak tersedia';
+    var DAYS = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+
+    function esc(s) {
+      return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+        return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+      });
     }
 
-    document.getElementById('press-btn').addEventListener('click', async () => {
-      try {
-        const res = await fetch('/api/press', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', ...headers },
-        });
-        if (res.ok) loadLeaderboard();
-        else if (res.status === 401) document.getElementById('count').textContent = 'Sign in to press!';
-      } catch {}
+    // WMO weather codes, in Indonesian. An unknown code falls back to
+    // Berawan as the neutral condition.
+    var WMO = {
+      0: 'Cerah',
+      1: 'Cerah Berawan', 2: 'Cerah Berawan', 3: 'Berawan',
+      45: 'Kabut', 48: 'Kabut',
+      51: 'Gerimis Ringan', 53: 'Gerimis', 55: 'Gerimis Lebat',
+      56: 'Gerimis Pembeku', 57: 'Gerimis Pembeku Lebat',
+      61: 'Hujan Ringan', 63: 'Hujan Sedang', 65: 'Hujan Lebat',
+      66: 'Hujan Pembeku', 67: 'Hujan Pembeku Lebat',
+      71: 'Salju Ringan', 73: 'Salju', 75: 'Salju Lebat', 77: 'Butiran Salju',
+      80: 'Hujan Lokal Ringan', 81: 'Hujan Lokal', 82: 'Hujan Lokal Lebat',
+      85: 'Hujan Salju Ringan', 86: 'Hujan Salju Lebat',
+      95: 'Badai Petir', 96: 'Badai Petir Hujan Es', 99: 'Badai Petir Hujan Es Lebat'
+    };
+    function cond(code) {
+      if (code == null) return NA;
+      return WMO[code] || 'Berawan';
+    }
+
+    // Simple inline SVG glyphs, stroke-based, in the violet/zinc palette.
+    var ICONS = {
+      sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/>',
+      partly: '<circle cx="7" cy="6" r="3"/><path d="M7 1.5V3M2.5 3.5l1 1M11.5 3.5l-1 1M2 6h1.5M10.5 6H12"/><path d="M17.5 20H9a6.5 6.5 0 1 1 6.23-8.34A4.5 4.5 0 1 1 17.5 20Z"/>',
+      cloud: '<path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"/>',
+      fog: '<path d="M13 3a4 4 0 0 1 3.87 5.02A3 3 0 0 1 16 14H8a4 4 0 0 1 0-8Z"/><path d="M3 18h18M5 22h14"/>',
+      drizzle: '<path d="M17.5 14H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"/><path d="M9 17l-1 2M14 17l-1 2M19 17l-1 2"/>',
+      rain: '<path d="M17.5 14H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"/><path d="M8 17l-1.2 3M13 17l-1.2 3M18 17l-1.2 3"/>',
+      snow: '<path d="M17.5 14H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"/><path d="M8 18h.01M12.5 19h.01M17 18h.01"/>',
+      thunder: '<path d="M17.5 13H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"/><path d="M13 15l-2 3h3l-2 4"/>'
+    };
+    function iconSvg(kind, cls) {
+      return '<svg class="' + cls + '" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + ICONS[kind] + '</svg>';
+    }
+    function kindFor(code) {
+      if (code == null) return 'cloud';
+      if (code === 0 || code === 1) return 'sun';
+      if (code === 2) return 'partly';
+      if (code === 3) return 'cloud';
+      if (code === 45 || code === 48) return 'fog';
+      if (code >= 51 && code <= 57) return 'drizzle';
+      if ((code >= 61 && code <= 67) || (code >= 80 && code <= 82)) return 'rain';
+      if ((code >= 71 && code <= 77) || code === 85 || code === 86) return 'snow';
+      if (code >= 95 && code <= 99) return 'thunder';
+      return 'cloud';
+    }
+
+    // Degrees to a 16-point Indonesian compass.
+    var DIRS = ['Utara', 'Utara Timur Laut', 'Timur Laut', 'Timur Timur Laut',
+      'Timur', 'Timur Tenggara', 'Tenggara', 'Tenggara Selatan',
+      'Selatan', 'Selatan Barat Daya', 'Barat Daya', 'Barat Barat Daya',
+      'Barat', 'Barat Barat Laut', 'Barat Laut', 'Utara Barat Laut'];
+    function windDir(deg) {
+      if (deg == null) return NA;
+      return DIRS[Math.round(deg / 22.5) % 16];
+    }
+
+    // One-decimal values use a decimal comma (Indonesian convention).
+    function num(v, unit, dec) {
+      if (v == null) return NA;
+      var body = dec ? Number(v).toFixed(dec).replace('.', ',') : String(Math.round(v));
+      return body + (unit ? ' ' + unit : '');
+    }
+
+    function show(el, yes) { el.classList.toggle('hidden', !yes); }
+
+    // Administrative chain, smallest to largest, with duplicates and the
+    // place's own name removed (the name is shown separately).
+    function chainOf(p) {
+      var seen = {};
+      var parts = [];
+      [p.admin4, p.admin3, p.admin2, p.admin1, p.country].forEach(function (v) {
+        if (v && !seen[v] && v !== p.name) { seen[v] = true; parts.push(v); }
+      });
+      return parts.join(', ');
+    }
+
+    // SEARCH
+    searchForm.addEventListener('submit', function (e) {
+      e.preventDefault();
+      var q = searchInput.value.trim();
+      if (!q) return;
+      runSearch(q);
     });
 
-    loadLeaderboard();
+    var results = [];
+    searchResults.addEventListener('click', function (e) {
+      var btn = e.target.closest('button[data-idx]');
+      if (btn && results[Number(btn.dataset.idx)]) loadWeather(results[Number(btn.dataset.idx)]);
+    });
+
+    backBtn.addEventListener('click', function () {
+      show(viewWeather, false);
+      show(viewSearch, true);
+      window.scrollTo(0, 0);
+    });
+
+    async function runSearch(q) {
+      show(searchResults, false);
+      show(searchStatus, true);
+      searchStatus.innerHTML = '<p class="px-1 text-sm text-zinc-500 dark:text-zinc-400">Mencari lokasi...</p>';
+      var body = null;
+      try {
+        var res = await fetch('/api/geocode?q=' + encodeURIComponent(q), { headers: headers });
+        body = await res.json().catch(function () { return null; });
+        if (!res.ok) body = null;
+      } catch (err) { body = null; }
+
+      if (!body) {
+        searchStatus.innerHTML = '<p class="px-1 text-sm text-zinc-600 dark:text-zinc-300">Pencarian lokasi gagal. Coba lagi nanti.</p>';
+        return;
+      }
+      if (!body.results || !body.results.length) {
+        searchStatus.innerHTML = '<p class="px-1 text-sm text-zinc-600 dark:text-zinc-300">Lokasi tidak ditemukan. Periksa ejaan atau coba nama yang lebih besar (kota atau kecamatan).</p>';
+        return;
+      }
+      show(searchStatus, false);
+      results = body.results;
+      searchResults.innerHTML = results.map(function (r, i) {
+        var chain = chainOf(r);
+        if (r.distance != null) {
+          chain += (chain ? ' · ' : '') + 'sekitar ' + Math.round(r.distance) + ' km';
+        }
+        return '<button type="button" data-idx="' + i + '" class="w-full text-left px-4 py-3 hover:bg-zinc-100 dark:hover:bg-zinc-800/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-violet-600/40">' +
+          '<span class="block text-sm font-semibold">' + esc(r.name) + '</span>' +
+          (chain ? '<span class="block text-xs text-zinc-500 dark:text-zinc-400">' + esc(chain) + '</span>' : '') +
+          '</button>';
+      }).join('');
+      show(searchResults, true);
+    }
+
+    // WEATHER
+    async function loadWeather(place) {
+      show(viewSearch, false);
+      show(viewWeather, true);
+      show(wBody, false);
+      show(wError, false);
+      show(wLoading, true);
+      wName.textContent = place.name || '';
+      wChain.textContent = chainOf(place);
+      window.scrollTo(0, 0);
+
+      var qs = new URLSearchParams();
+      qs.set('lat', place.latitude);
+      qs.set('lon', place.longitude);
+      ['name', 'admin1', 'admin2', 'admin3', 'admin4', 'country', 'countryCode'].forEach(function (k) {
+        if (place[k]) qs.set(k, place[k]);
+      });
+
+      var body = null;
+      try {
+        var res = await fetch('/api/weather?' + qs.toString(), { headers: headers });
+        body = await res.json().catch(function () { return null; });
+        if (!res.ok) body = null;
+      } catch (err) { body = null; }
+
+      show(wLoading, false);
+      if (!body) {
+        show(wError, true);
+        return;
+      }
+      renderWeather(body);
+      show(wBody, true);
+    }
+
+    function detailRow(label, value) {
+      return '<div class="flex justify-between gap-3 py-2">' +
+        '<dt class="text-zinc-500 dark:text-zinc-400">' + label + '</dt>' +
+        '<dd class="font-medium text-right">' + value + '</dd></div>';
+    }
+
+    function renderWeather(data) {
+      var c = data.current || {};
+
+      document.getElementById('w-now-icon').innerHTML = iconSvg(kindFor(c.weatherCode), 'w-12 h-12');
+      document.getElementById('w-now-temp').textContent = num(c.temperature, '°C');
+      document.getElementById('w-now-cond').textContent = cond(c.weatherCode);
+
+      document.getElementById('w-now-rows').innerHTML =
+        detailRow('Terasa seperti', num(c.apparentTemperature, '°C')) +
+        detailRow('Kelembapan', num(c.humidity, '%')) +
+        detailRow('Angin', c.windSpeed == null ? NA : num(c.windSpeed, 'km/jam') + ', ' + windDir(c.windDirection)) +
+        detailRow('Tekanan udara', num(c.pressure, 'hPa')) +
+        detailRow('Jarak pandang', num(c.visibilityKm, 'km', 1)) +
+        detailRow('Indeks UV', num(c.uvIndex, '')) +
+        detailRow('Curah hujan', num(c.precipitation, 'mm', 1));
+
+      // 24 hours from the current hour on.
+      var hourlyEl = document.getElementById('w-hourly');
+      var hours = Array.isArray(data.hourly24) ? data.hourly24 : [];
+      hourlyEl.innerHTML = hours.map(function (h) {
+        return '<div class="shrink-0 w-16 rounded-lg bg-zinc-100 dark:bg-zinc-800/60 p-2 flex flex-col items-center gap-1 text-center" title="' + esc(cond(h.weatherCode)) + '">' +
+          '<span class="text-xs text-zinc-500 dark:text-zinc-400">' + esc(h.time ? h.time.slice(11, 16) : '') + '</span>' +
+          iconSvg(kindFor(h.weatherCode), 'w-5 h-5 text-violet-600 dark:text-violet-400') +
+          '<span class="text-sm font-semibold">' + (h.temperature == null ? '-' : Math.round(h.temperature) + '°') + '</span>' +
+          '<span class="text-xs text-zinc-500 dark:text-zinc-400">' + (h.precipProbability == null ? '-' : Math.round(h.precipProbability) + '%') + '</span>' +
+          '</div>';
+      }).join('');
+      if (!hours.length) hourlyEl.innerHTML = '<p class="text-sm text-zinc-500 dark:text-zinc-400">' + NA + '</p>';
+
+      var days = Array.isArray(data.daily7) ? data.daily7 : [];
+      document.getElementById('w-daily').innerHTML = days.map(function (d, i) {
+        var label = d.date;
+        if (i === 0) {
+          label = 'Hari ini';
+        } else if (d.date) {
+          var dt = new Date(Number(d.date.slice(0, 4)), Number(d.date.slice(5, 7)) - 1, Number(d.date.slice(8, 10)));
+          if (!isNaN(dt)) label = DAYS[dt.getDay()];
+        }
+        return '<div class="flex items-center justify-between gap-3 py-2">' +
+          '<span class="w-20 shrink-0 font-medium">' + esc(label) + '</span>' +
+          '<span class="text-right">' +
+            '<span class="block font-medium">' + (d.tempMin == null ? '-' : Math.round(d.tempMin) + '°') + ' / ' + (d.tempMax == null ? '-' : Math.round(d.tempMax) + '°') + '</span>' +
+            '<span class="block text-xs text-zinc-500 dark:text-zinc-400">Peluang hujan ' + (d.precipProbability == null ? '-' : Math.round(d.precipProbability) + '%') + '</span>' +
+          '</span></div>';
+      }).join('');
+      if (!days.length) document.getElementById('w-daily').innerHTML = '<p class="text-sm text-zinc-500 dark:text-zinc-400">' + NA + '</p>';
+
+      var warnCard = document.getElementById('w-warn-card');
+      var warns = Array.isArray(data.warnings) ? data.warnings : [];
+      if (warns.length) {
+        document.getElementById('w-warnings').innerHTML = warns.map(function (w) {
+          var badge = w.level === 'Awas'
+            ? 'bg-violet-600 text-white'
+            : 'bg-violet-600/10 text-violet-700 dark:bg-violet-600/20 dark:text-violet-300';
+          return '<li class="flex items-start gap-3">' +
+            '<span class="shrink-0 rounded-full px-2.5 py-0.5 text-xs font-semibold ' + badge + '">' + esc(w.level) + '</span>' +
+            '<span class="text-zinc-800 dark:text-zinc-200">' + esc(w.text) + '</span></li>';
+        }).join('');
+        show(warnCard, true);
+      } else {
+        show(warnCard, false);
+      }
+
+      var info = Array.isArray(data.daily7) && data.daily7[0] ? data.daily7[0] : {};
+      document.getElementById('w-info-rows').innerHTML =
+        detailRow('Waktu terbit', info.sunrise ? esc(info.sunrise.slice(11, 16)) : NA) +
+        detailRow('Waktu terbenam', info.sunset ? esc(info.sunset.slice(11, 16)) : NA) +
+        detailRow('Kualitas udara', data.air && data.air.aqi != null ? 'AQI ' + data.air.aqi + ', ' + esc(data.air.category) : NA) +
+        detailRow('Saran', esc(data.saran || NA));
+
+      document.getElementById('w-source').textContent =
+        'Sumber: ' + (data.source || 'Open-Meteo') +
+        (data.fetchedAt ? ' · Diperbarui: ' + data.fetchedAt.replace('T', ' ') + ' waktu setempat' : '');
+    }
+  })();
   </script>
 </body>
 </html>

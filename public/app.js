@@ -40,6 +40,8 @@
       favTooMany: 'Favorit sudah penuh ({max} tempat). Hapus satu dulu.',
       browse: 'Jelajahi',
       browseTitle: 'Jelajahi wilayah',
+      themeToDark: 'Ganti ke tema gelap',
+      themeToLight: 'Ganti ke tema terang',
       allCountries: 'Semua negara',
       filterCountries: 'Saring negara',
       filterRegions: 'Saring provinsi atau negara bagian',
@@ -153,6 +155,8 @@
       favTooMany: 'Your favorites are full ({max} places). Remove one first.',
       browse: 'Browse',
       browseTitle: 'Browse places',
+      themeToDark: 'Switch to dark theme',
+      themeToLight: 'Switch to light theme',
       allCountries: 'All countries',
       filterCountries: 'Filter countries',
       filterRegions: 'Filter provinces or states',
@@ -462,6 +466,7 @@
     segment('unit-toggle', 'unit', state.unit);
     renderFavoritesButton();
     renderBrowseButton();
+    renderThemeButton();
   }
 
   var SEG_ON = ['bg-sky-600', 'text-white'];
@@ -865,6 +870,19 @@
     b.innerHTML = icon('map', 'w-4 h-4 text-sky-600 dark:text-sky-400') + '<span>' + esc(t('browse')) + '</span>';
   }
 
+  // The icon shows the look that is on now; the label says what tapping
+  // does. The head script in index.html owns the dark class — this only
+  // draws the button, and re-runs after it has applied a theme change.
+  function renderThemeButton() {
+    var b = $('theme-btn');
+    if (!b) return;
+    var dark = document.documentElement.classList.contains('dark');
+    b.innerHTML = icon(dark ? 'moon' : 'sun', 'w-4 h-4 text-sky-600 dark:text-sky-400');
+    var label = t(dark ? 'themeToLight' : 'themeToDark');
+    b.setAttribute('aria-label', label);
+    b.setAttribute('title', label);
+  }
+
   function renderBrowse() {
     renderBrowseButton();
     var el = $('browse');
@@ -1120,6 +1138,24 @@
     segment('unit-toggle', 'unit', state.unit);
     renderReport();
   });
+  // Theme toggle (issue #16): the head script in index.html owns the dark
+  // class and reads the saved choice; here we only store it and ask it to
+  // re-apply. Picking the look Homeroom already gives clears the choice,
+  // which is how the app goes back to following Homeroom.
+  $('theme-btn').addEventListener('click', function () {
+    var next = document.documentElement.classList.contains('dark') ? 'light' : 'dark';
+    try {
+      if (next === window.wwTheme.inherited()) localStorage.removeItem('ww.theme');
+      else localStorage.setItem('ww.theme', next);
+    } catch (_) {}
+    window.wwTheme.apply();
+    renderThemeButton();
+  });
+  // When the Homeroom theme (or the OS preference outside Homeroom)
+  // changes, the head script's listener re-applies the theme first (it was
+  // registered earlier), then this redraws the button for the new look.
+  window.addEventListener('usernode:theme-changed', renderThemeButton);
+  window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', renderThemeButton);
 
   function setLang(lang, persist) {
     if (lang !== 'id' && lang !== 'en') return;

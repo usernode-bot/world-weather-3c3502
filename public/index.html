@@ -95,16 +95,28 @@
   <link rel="stylesheet" href="/usernode-native/v1/native.css">
   <script src="/usernode-native/v1/native.js"></script>
   <!-- Follow the viewer's Homeroom theme (the bridge reports it), with the
-       OS preference as the fallback outside Homeroom. -->
+       OS preference as the fallback outside Homeroom. A choice saved by the
+       header theme button (localStorage "ww.theme", issue #16) outranks
+       both until it matches the Homeroom theme again and is cleared. -->
   <script>
     (function () {
       var media = window.matchMedia('(prefers-color-scheme: dark)');
+      function inherited() {
+        return (window.usernode && window.usernode.theme) || (media.matches ? 'dark' : 'light');
+      }
+      function stored() {
+        try {
+          var v = localStorage.getItem('ww.theme');
+          return v === 'light' || v === 'dark' ? v : null;
+        } catch (_) { return null; }
+      }
       function applyTheme() {
-        var theme = (window.usernode && window.usernode.theme) || (media.matches ? 'dark' : 'light');
+        var theme = stored() || inherited();
         document.documentElement.classList.toggle('dark', theme === 'dark');
         document.documentElement.style.colorScheme = theme;
       }
       applyTheme();
+      window.wwTheme = { inherited: inherited, apply: applyTheme };
       window.addEventListener('usernode:theme-changed', applyTheme);
       media.addEventListener('change', applyTheme);
     })();
@@ -128,6 +140,8 @@
           <button type="button" data-unit="c" class="px-2.5 py-1 rounded-md">°C</button>
           <button type="button" data-unit="f" class="px-2.5 py-1 rounded-md">°F</button>
         </div>
+        <button type="button" id="theme-btn" aria-label=""
+          class="inline-flex items-center gap-1.5 rounded-lg border border-zinc-200 dark:border-zinc-800 px-2.5 py-1.5 text-sm font-medium text-zinc-700 dark:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500"></button>
       </div>
     </header>
 

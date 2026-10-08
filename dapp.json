@@ -11,6 +11,11 @@
       "expectSelector": "#search-input"
     },
     {
+      "name": "Header shows the theme button",
+      "path": "/",
+      "expectSelector": "#theme-btn[aria-label] svg"
+    },
+    {
       "id": "weather.report",
       "name": "Weather report loads live data for a saved place (Ubud)",
       "path": "/?place=1622846",

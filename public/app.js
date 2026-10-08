@@ -79,6 +79,9 @@
       noAlertsNws: 'Tidak ada peringatan aktif dari {src} untuk lokasi ini saat ini.',
       noAlertFeed: 'Peringatan resmi untuk lokasi ini tidak tersedia di aplikasi ini.',
       checkAgency: 'Periksa peringatan terbaru di {agency}.',
+      alertBannerOne: '1 peringatan aktif',
+      alertBannerMany: '{n} peringatan aktif',
+      alertBannerLink: 'Lihat peringatan dini',
       issuer: 'Penerbit',
       severity: 'Tingkat',
       until: 'Berlaku sampai {t}',
@@ -192,6 +195,9 @@
       noAlertsNws: 'No active warnings from {src} for this place right now.',
       noAlertFeed: 'Official warnings for this place are not available in this app.',
       checkAgency: 'Check {agency} for the latest warnings.',
+      alertBannerOne: '1 active warning',
+      alertBannerMany: '{n} active warnings',
+      alertBannerLink: 'See weather warnings',
       issuer: 'Issued by',
       severity: 'Severity',
       until: 'In effect until {t}',
@@ -540,6 +546,7 @@
     var p = state.place, w = state.weather;
     if (!p || !w) { show('report', false); return; }
     var c = w.current || {};
+    var al = w.alerts || { supported: false, items: [] };
     var html = '';
 
     // Location
@@ -561,6 +568,26 @@
       + '</div>'
       + notes.map(function (n) { return '<p class="mt-2 text-sm text-amber-800 dark:text-amber-200">' + esc(n) + '</p>'; }).join('')
       + '</section>';
+
+    // Alerts banner (links down to the #alerts section)
+    if (al.items.length) {
+      var SEV_RANK = { Extreme: 4, Severe: 3, Moderate: 2, Minor: 1 };
+      var top = al.items.reduce(function (best, a) {
+        return (SEV_RANK[a.severity] || 0) > (SEV_RANK[best.severity] || 0) ? a : best;
+      }, al.items[0]);
+      var sev = STRINGS[state.lang].sev[top.severity] || top.severity || STRINGS[state.lang].sev.Unknown;
+      var bannerSevere = top.severity === 'Extreme' || top.severity === 'Severe';
+      var bannerCls = bannerSevere
+        ? 'border-red-200 bg-red-50 text-red-800 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-200'
+        : 'border-amber-200 bg-amber-50 text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-200';
+      var bannerIconCls = bannerSevere ? 'text-red-600 dark:text-red-400' : 'text-amber-600 dark:text-amber-400';
+      html += '<a id="alert-banner" href="#alerts" class="rounded-xl border px-4 py-3 flex items-start gap-3 hover:opacity-90 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 ' + bannerCls + '">'
+        + icon('alert', 'w-5 h-5 shrink-0 mt-0.5 ' + bannerIconCls)
+        + '<div class="min-w-0"><p class="font-semibold">'
+        + esc(al.items.length === 1 ? t('alertBannerOne') : t('alertBannerMany', { n: al.items.length })) + '</p>'
+        + '<p class="text-sm">' + (top.event ? esc(top.event) + ' · ' : '') + esc(t('severity')) + ': ' + esc(sev) + '</p>'
+        + '<p class="text-sm font-medium underline mt-1">' + esc(t('alertBannerLink')) + '</p></div></a>';
+    }
 
     // Current
     var windText = has(c.wind_speed_10m)
@@ -616,7 +643,6 @@
       + '</div></section>';
 
     // Alerts
-    var al = w.alerts || { supported: false, items: [] };
     var agency = agencyFor(p.countryCode);
     var agencyLink = '<a class="font-medium text-sky-700 underline dark:text-sky-300" href="' + esc(agency[1]) + '" target="_blank" rel="noopener noreferrer">' + esc(agency[0]) + '</a>';
     var alertsHtml;

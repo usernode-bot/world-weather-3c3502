@@ -22,6 +22,12 @@
       ]
     },
     {
+      "name": "Report shows a wind speed unit switch (km/j vs mph)",
+      "path": "/?place=1622846",
+      "expectSelector": "#speed-toggle button[data-speed=\"mph\"][aria-pressed=\"false\"]",
+      "expectText": "mph"
+    },
+    {
       "id": "favorites.toggle",
       "name": "Weather report shows Save once favorites load (real /api/favorites)",
       "path": "/?place=1622846",
@@ -39,7 +45,11 @@
       "expectSelector": "#browse-list ul[data-level=\"1\"] button[data-row]",
       "expectText": "Central Java",
       "visual": true,
-      "impact": ["public/**", "server.js", "data/regions/**"]
+      "impact": [
+        "public/**",
+        "server.js",
+        "data/regions/**"
+      ]
     },
     {
       "id": "browse.districts",
@@ -48,7 +58,11 @@
       "expectSelector": "#browse-list ul[data-level=\"2\"] button[data-row]",
       "expectText": "Kabupaten Bandung",
       "visual": true,
-      "impact": ["public/**", "server.js", "data/regions/**"]
+      "impact": [
+        "public/**",
+        "server.js",
+        "data/regions/**"
+      ]
     },
     {
       "name": "Region browser lists all countries",

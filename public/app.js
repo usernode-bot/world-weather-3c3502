@@ -58,6 +58,9 @@
       current: 'Cuaca saat ini',
       forecast: 'Prakiraan',
       alerts: 'Peringatan dini',
+      alertsBanner: '{n} peringatan cuaca aktif',
+      alertsBannerOne: '1 peringatan cuaca aktif',
+      alertsBannerView: 'Lihat peringatan',
       extra: 'Info tambahan',
       feelsLike: 'Terasa seperti {t}',
       humidity: 'Kelembapan',
@@ -171,6 +174,9 @@
       current: 'Current weather',
       forecast: 'Forecast',
       alerts: 'Weather warnings',
+      alertsBanner: '{n} active weather warnings',
+      alertsBannerOne: '1 active weather warning',
+      alertsBannerView: 'View warnings',
       extra: 'More info',
       feelsLike: 'Feels like {t}',
       humidity: 'Humidity',
@@ -540,6 +546,7 @@
     var p = state.place, w = state.weather;
     if (!p || !w) { show('report', false); return; }
     var c = w.current || {};
+    var al = w.alerts || { supported: false, items: [] };
     var html = '';
 
     // Location
@@ -561,6 +568,34 @@
       + '</div>'
       + notes.map(function (n) { return '<p class="mt-2 text-sm text-amber-800 dark:text-amber-200">' + esc(n) + '</p>'; }).join('')
       + '</section>';
+
+    // Alerts banner: one tappable panel above the report when the feed has
+    // active warnings. Red when any is Extreme or Severe, amber otherwise.
+    if (al.items.length) {
+      var severe = al.items.some(function (a) { return a.severity === 'Extreme' || a.severity === 'Severe'; });
+      var pal = severe
+        ? { box: 'border-red-300 bg-red-50 dark:border-red-800 dark:bg-red-950/40', icon: 'text-red-600 dark:text-red-400', text: 'text-red-800 dark:text-red-200', sub: 'text-red-700 dark:text-red-300' }
+        : { box: 'border-amber-300 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/40', icon: 'text-amber-600 dark:text-amber-400', text: 'text-amber-800 dark:text-amber-200', sub: 'text-amber-700 dark:text-amber-300' };
+      // Strongest event name: scan by severity rank, first match with a name wins.
+      var rank = ['Extreme', 'Severe', 'Moderate', 'Minor', 'Unknown'];
+      var bannerEvent = '';
+      for (var r = 0; r < rank.length && !bannerEvent; r++) {
+        for (var i = 0; i < al.items.length && !bannerEvent; i++) {
+          var a = al.items[i];
+          if ((a.severity && rank.indexOf(a.severity) === r || (!a.severity && rank[r] === 'Unknown')) && a.event) bannerEvent = a.event;
+        }
+      }
+      html += '<section id="alerts-banner">'
+        + '<a href="#alerts" class="block rounded-xl border px-4 py-3 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 ' + pal.box + '">'
+        + '<div class="flex items-center gap-3">'
+        + icon('alert', 'w-5 h-5 shrink-0 ' + pal.icon)
+        + '<div class="min-w-0">'
+        + '<p class="font-semibold ' + pal.text + '">' + esc(al.items.length === 1 ? t('alertsBannerOne') : t('alertsBanner', { n: al.items.length })) + '</p>'
+        + (bannerEvent ? '<p class="text-sm truncate ' + pal.sub + '">' + esc(bannerEvent) + '</p>' : '')
+        + '</div>'
+        + '<span class="ml-auto text-sm font-medium underline whitespace-nowrap ' + pal.sub + '">' + esc(t('alertsBannerView')) + '</span>'
+        + '</div></a></section>';
+    }
 
     // Current
     var windText = has(c.wind_speed_10m)
@@ -616,7 +651,6 @@
       + '</div></section>';
 
     // Alerts
-    var al = w.alerts || { supported: false, items: [] };
     var agency = agencyFor(p.countryCode);
     var agencyLink = '<a class="font-medium text-sky-700 underline dark:text-sky-300" href="' + esc(agency[1]) + '" target="_blank" rel="noopener noreferrer">' + esc(agency[0]) + '</a>';
     var alertsHtml;

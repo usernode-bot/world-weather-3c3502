@@ -94,13 +94,23 @@
   <script src="/usernode-bridge/v1/bridge.js"></script>
   <link rel="stylesheet" href="/usernode-native/v1/native.css">
   <script src="/usernode-native/v1/native.js"></script>
-  <!-- Follow the viewer's Homeroom theme (the bridge reports it), with the
-       OS preference as the fallback outside Homeroom. -->
+  <!-- Follow the theme in this order: a choice saved as ww.theme by the
+       header toggle beats the viewer's Homeroom theme (the bridge reports
+       it), which beats the OS preference outside Homeroom. Anything other
+       than the exact values light or dark counts as no choice. -->
   <script>
     (function () {
       var media = window.matchMedia('(prefers-color-scheme: dark)');
+      function savedTheme() {
+        try {
+          var v = localStorage.getItem('ww.theme');
+          return v === 'light' || v === 'dark' ? v : null;
+        } catch (_) { return null; }
+      }
       function applyTheme() {
-        var theme = (window.usernode && window.usernode.theme) || (media.matches ? 'dark' : 'light');
+        var theme = savedTheme()
+          || (window.usernode && window.usernode.theme)
+          || (media.matches ? 'dark' : 'light');
         document.documentElement.classList.toggle('dark', theme === 'dark');
         document.documentElement.style.colorScheme = theme;
       }
@@ -128,6 +138,12 @@
           <button type="button" data-unit="c" class="px-2.5 py-1 rounded-md">°C</button>
           <button type="button" data-unit="f" class="px-2.5 py-1 rounded-md">°F</button>
         </div>
+        <!-- Light/dark toggle: the static icon and label are the light-default
+             guess; app.js corrects both on load. -->
+        <button type="button" id="theme-btn" aria-label="Ganti ke tema gelap"
+          class="inline-flex items-center rounded-lg border border-zinc-200 dark:border-zinc-800 p-2 hover:bg-zinc-100 dark:hover:bg-zinc-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500">
+          <svg class="w-4 h-4 text-sky-600 dark:text-sky-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></svg>
+        </button>
       </div>
     </header>
 

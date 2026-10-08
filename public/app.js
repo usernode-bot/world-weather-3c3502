@@ -14,6 +14,8 @@
       searchLabel: 'Cari lokasi',
       searchPlaceholder: 'Negara, kota, atau desa',
       searchButton: 'Cari',
+      themeToDark: 'Ganti ke tema gelap',
+      themeToLight: 'Ganti ke tema terang',
       emptyTitle: 'Cari lokasi untuk melihat cuacanya',
       emptyBody: 'Ketik nama negara, kota, kecamatan, atau desa. Tambahkan wilayah setelah koma agar lebih tepat, misalnya "Ubud, Bali".',
       searching: 'Mencari lokasi…',
@@ -127,6 +129,8 @@
       searchLabel: 'Search for a place',
       searchPlaceholder: 'Country, city or village',
       searchButton: 'Search',
+      themeToDark: 'Switch to dark theme',
+      themeToLight: 'Switch to light theme',
       emptyTitle: 'Search for a place to see its weather',
       emptyBody: 'Type a country, city, district or village. Add a region after a comma to narrow it down, for example "Ubud, Bali".',
       searching: 'Searching…',
@@ -460,8 +464,19 @@
     $('unit-toggle').setAttribute('aria-label', state.lang === 'id' ? 'Satuan suhu' : 'Temperature unit');
     segment('lang-toggle', 'lang', state.lang);
     segment('unit-toggle', 'unit', state.unit);
+    renderThemeButton();
     renderFavoritesButton();
     renderBrowseButton();
+  }
+
+  // The header's light/dark toggle: the icon shows the look that is active
+  // and the screen-reader label names the look tapping will switch to.
+  function renderThemeButton() {
+    var b = $('theme-btn');
+    if (!b) return;
+    var dark = document.documentElement.classList.contains('dark');
+    b.innerHTML = icon(dark ? 'moon' : 'sun', 'w-4 h-4 text-sky-600 dark:text-sky-400');
+    b.setAttribute('aria-label', t(dark ? 'themeToLight' : 'themeToDark'));
   }
 
   var SEG_ON = ['bg-sky-600', 'text-white'];
@@ -1119,6 +1134,15 @@
     localStorage.setItem('ww.unit', state.unit);
     segment('unit-toggle', 'unit', state.unit);
     renderReport();
+  });
+  // The first tap always saves a choice, even when the look being left came
+  // from the Homeroom theme. A failed write keeps the flip for this visit.
+  $('theme-btn').addEventListener('click', function () {
+    var next = document.documentElement.classList.contains('dark') ? 'light' : 'dark';
+    try { localStorage.setItem('ww.theme', next); } catch (_) {}
+    document.documentElement.classList.toggle('dark', next === 'dark');
+    document.documentElement.style.colorScheme = next;
+    renderThemeButton();
   });
 
   function setLang(lang, persist) {

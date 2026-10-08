@@ -11,6 +11,12 @@
       "expectSelector": "#search-input"
     },
     {
+      "id": "theme.toggle",
+      "name": "Header shows the light/dark toggle button",
+      "path": "/",
+      "expectSelector": "#theme-btn"
+    },
+    {
       "id": "weather.report",
       "name": "Weather report loads live data for a saved place (Ubud)",
       "path": "/?place=1622846",

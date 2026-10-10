@@ -66,8 +66,12 @@
       feelsLike: 'Terasa seperti {t}',
       humidity: 'Kelembapan',
       wind: 'Angin',
-      windFrom: '{s} km/j dari {d}',
-      gusts: 'hembusan hingga {g} km/j',
+      windFrom: '{s} dari {d}',
+      gusts: 'hembusan hingga {g}',
+      unitTempLabel: 'Satuan suhu',
+      unitSpeedLabel: 'Satuan kecepatan angin',
+      unitKmh: 'km/j',
+      unitMph: 'mph',
       pressure: 'Tekanan udara',
       visibility: 'Jarak pandang',
       uv: 'Indeks UV',
@@ -183,8 +187,12 @@
       feelsLike: 'Feels like {t}',
       humidity: 'Humidity',
       wind: 'Wind',
-      windFrom: '{s} km/h from the {d}',
-      gusts: 'gusts up to {g} km/h',
+      windFrom: '{s} from the {d}',
+      gusts: 'gusts up to {g}',
+      unitTempLabel: 'Temperature unit',
+      unitSpeedLabel: 'Wind speed unit',
+      unitKmh: 'km/h',
+      unitMph: 'mph',
       pressure: 'Pressure',
       visibility: 'Visibility',
       uv: 'UV index',
@@ -294,6 +302,7 @@
     unit: localStorage.getItem('ww.unit') === 'f' ? 'f' : 'c',
     // 'auto' (follow the Homeroom theme) until a light/dark choice is made.
     theme: storedTheme() || 'auto',
+    speed: localStorage.getItem('ww.speed') === 'mph' ? 'mph' : 'kmh',
     place: null,
     weather: null,
     // Re-run on "Try again" and on a language change.
@@ -363,6 +372,14 @@
   function temp(c) {
     if (!has(c)) return t('unavailable');
     return state.unit === 'f' ? num(c * 9 / 5 + 32) + '°F' : num(c) + '°C';
+  }
+
+  // Wind speed arrives in km/h (the server asks Open-Meteo for kmh); show it
+  // in the viewer's chosen unit, converting only for display.
+  function speed(kmh) {
+    if (!has(kmh)) return t('unavailable');
+    var unit = t(state.speed === 'mph' ? 'unitMph' : 'unitKmh');
+    return (state.speed === 'mph' ? num(kmh / 1.609344) : num(kmh)) + ' ' + unit;
   }
 
   // Open-Meteo answers in the place's own local time as "YYYY-MM-DDTHH:MM"
@@ -473,10 +490,12 @@
     document.querySelectorAll('[data-i18n]').forEach(function (el) { el.textContent = t(el.dataset.i18n); });
     document.querySelectorAll('[data-i18n-placeholder]').forEach(function (el) { el.placeholder = t(el.dataset.i18nPlaceholder); });
     $('lang-toggle').setAttribute('aria-label', state.lang === 'id' ? 'Bahasa' : 'Language');
-    $('unit-toggle').setAttribute('aria-label', state.lang === 'id' ? 'Satuan suhu' : 'Temperature unit');
+    $('unit-toggle').setAttribute('aria-label', t('unitTempLabel'));
+    $('speed-toggle').setAttribute('aria-label', t('unitSpeedLabel'));
     segment('lang-toggle', 'lang', state.lang);
     segment('unit-toggle', 'unit', state.unit);
     paintTheme();
+    segment('speed-toggle', 'speed', state.speed);
     renderFavoritesButton();
     renderBrowseButton();
   }
@@ -599,7 +618,7 @@
 
     // Current
     var windText = has(c.wind_speed_10m)
-      ? t('windFrom', { s: num(c.wind_speed_10m), d: compass(c.wind_direction_10m) }) + ' (' + num(c.wind_direction_10m) + '°)'
+      ? t('windFrom', { s: speed(c.wind_speed_10m), d: compass(c.wind_direction_10m) }) + ' (' + num(c.wind_direction_10m) + '°)'
       : t('unavailable');
     html += '<section id="current" data-state="loaded">' + sectionHeader(t('current'))
       + '<div class="' + CARD + '">'
@@ -610,7 +629,7 @@
       + '<p class="text-sm text-zinc-600 dark:text-zinc-400">' + esc(t('feelsLike', { t: temp(c.apparent_temperature) })) + '</p></div></div>'
       + '<dl class="border-t border-zinc-200 dark:border-zinc-800 divide-y divide-zinc-200 dark:divide-zinc-800">'
       + row(t('humidity'), has(c.relative_humidity_2m) ? num(c.relative_humidity_2m) + '%' : t('unavailable'))
-      + row(t('wind'), windText, has(c.wind_gusts_10m) ? t('gusts', { g: num(c.wind_gusts_10m) }) : '')
+      + row(t('wind'), windText, has(c.wind_gusts_10m) ? t('gusts', { g: speed(c.wind_gusts_10m) }) : '')
       + row(t('pressure'), has(c.pressure_msl) ? num(c.pressure_msl) + ' hPa' : t('unavailable'))
       + row(t('visibility'), has(c.visibility) ? (c.visibility >= 1000 ? num(c.visibility / 1000, c.visibility < 10000 ? 1 : 0) + ' km' : num(c.visibility) + ' m') : t('unavailable'))
       + row(t('uv'), has(c.uv_index) ? num(c.uv_index, 1) + ' · ' + uvCategory(c.uv_index) : t('unavailable'))
@@ -1164,6 +1183,14 @@
     else localStorage.setItem('ww.theme', state.theme);
     if (window.wwApplyTheme) window.wwApplyTheme();
     paintTheme();
+  });
+  $('speed-toggle').addEventListener('click', function (e) {
+    var b = e.target.closest('button[data-speed]');
+    if (!b) return;
+    state.speed = b.dataset.speed;
+    localStorage.setItem('ww.speed', state.speed);
+    segment('speed-toggle', 'speed', state.speed);
+    renderReport();
   });
 
   function setLang(lang, persist) {

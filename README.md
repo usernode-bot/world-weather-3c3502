@@ -21,7 +21,9 @@ All data is live and comes from keyless public APIs, relayed by the server
 No value is estimated; anything missing upstream is shown as unavailable.
 The source and the data time are printed at the bottom of every report.
 
-Units are metric, with a °C/°F switch for temperature. The language follows
+Units are metric by default, with a °C/°F switch for temperature and a
+km/h vs mph switch for wind speed. Every temperature and wind value on the
+report follows the switch, and the choice is remembered. The language follows
 the viewer's Homeroom locale, then the device, and can be changed in the app.
 The chosen place is kept in the address (`?place=<GeoNames id>`) and in
 `localStorage`. The header also has a theme switch: Auto follows the

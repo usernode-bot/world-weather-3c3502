@@ -26,7 +26,9 @@ km/h vs mph switch for wind speed. Every temperature and wind value on the
 report follows the switch, and the choice is remembered. The language follows
 the viewer's Homeroom locale, then the device, and can be changed in the app.
 The chosen place is kept in the address (`?place=<GeoNames id>`) and in
-`localStorage`.
+`localStorage`. The header also has a theme switch: Auto follows the
+viewer's Homeroom theme, or Light and Dark pin the look; a pinned choice
+is remembered in `localStorage` until Auto is picked again.
 
 - **Favorites.** The Save button on a report stars the place; the Favorites
   button in the header lists saved places to reopen or remove. They are

@@ -11,6 +11,14 @@
       "expectSelector": "#search-input"
     },
     {
+      "id": "header.theme",
+      "name": "Header shows the theme switch, Auto by default",
+      "path": "/",
+      "expectSelector": "#theme-toggle button[data-theme=\"auto\"][aria-pressed=\"true\"]",
+      "visual": true,
+      "impact": ["public/**"]
+    },
+    {
       "id": "weather.report",
       "name": "Weather report loads live data for a saved place (Ubud)",
       "path": "/?place=1622846",

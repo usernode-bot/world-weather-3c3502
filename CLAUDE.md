@@ -116,8 +116,8 @@ default language is Indonesian, with English as the alternative.
   (`AGENCIES` in `public/app.js`).
 - Strings live in `STRINGS.id` / `STRINGS.en` in `public/app.js`. Add both
   whenever you add one.
-- The chosen place, language and unit are kept in `localStorage`
-  (`ww.place`, `ww.lang`, `ww.unit`) and the place also in
+- The chosen place, language, unit and theme are kept in `localStorage`
+  (`ww.place`, `ww.lang`, `ww.unit`, `ww.theme`) and the place also in
   `?place=<GeoNames id>`.
 - The region browser (Browse) reads `data/regions/`, generated from the
   GeoNames dumps by `scripts/build-regions.js`; regenerate rather than edit

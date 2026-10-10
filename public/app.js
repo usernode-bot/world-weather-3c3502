@@ -40,6 +40,10 @@
       favTooMany: 'Favorit sudah penuh ({max} tempat). Hapus satu dulu.',
       browse: 'Jelajahi',
       browseTitle: 'Jelajahi wilayah',
+      theme: 'Tema',
+      themeAuto: 'Ikuti tema Homeroom',
+      themeLight: 'Terang',
+      themeDark: 'Gelap',
       allCountries: 'Semua negara',
       filterCountries: 'Saring negara',
       filterRegions: 'Saring provinsi atau negara bagian',
@@ -153,6 +157,10 @@
       favTooMany: 'Your favorites are full ({max} places). Remove one first.',
       browse: 'Browse',
       browseTitle: 'Browse places',
+      theme: 'Theme',
+      themeAuto: 'Follow Homeroom theme',
+      themeLight: 'Light',
+      themeDark: 'Dark',
       allCountries: 'All countries',
       filterCountries: 'Filter countries',
       filterRegions: 'Filter provinces or states',
@@ -284,6 +292,8 @@
   var state = {
     lang: storedLang() || guessLang(navigator.language),
     unit: localStorage.getItem('ww.unit') === 'f' ? 'f' : 'c',
+    // 'auto' (follow the Homeroom theme) until a light/dark choice is made.
+    theme: storedTheme() || 'auto',
     place: null,
     weather: null,
     // Re-run on "Try again" and on a language change.
@@ -311,6 +321,12 @@
   function storedLang() {
     var v = localStorage.getItem('ww.lang');
     return v === 'id' || v === 'en' ? v : null;
+  }
+
+  // An explicit in-app theme choice; null means "auto" (follow Homeroom).
+  function storedTheme() {
+    var v = localStorage.getItem('ww.theme');
+    return v === 'light' || v === 'dark' ? v : null;
   }
 
   // Indonesian and Malay readers get Indonesian; other known languages get
@@ -460,6 +476,7 @@
     $('unit-toggle').setAttribute('aria-label', state.lang === 'id' ? 'Satuan suhu' : 'Temperature unit');
     segment('lang-toggle', 'lang', state.lang);
     segment('unit-toggle', 'unit', state.unit);
+    paintTheme();
     renderFavoritesButton();
     renderBrowseButton();
   }
@@ -472,6 +489,24 @@
       b.setAttribute('aria-pressed', on ? 'true' : 'false');
       SEG_ON.forEach(function (c) { b.classList.toggle(c, on); });
       SEG_OFF.forEach(function (c) { b.classList.toggle(c, !on); });
+    });
+  }
+
+  // The theme switch paints like segment(), except its two icon buttons are
+  // drawn in the accent colour when off, the way the report's icons are.
+  function paintTheme() {
+    var group = $('theme-toggle');
+    if (!group) return;
+    group.setAttribute('aria-label', t('theme'));
+    group.querySelectorAll('button').forEach(function (b) {
+      var on = b.dataset.theme === state.theme;
+      var label = t('theme' + b.dataset.theme.charAt(0).toUpperCase() + b.dataset.theme.slice(1));
+      var off = b.dataset.theme === 'auto' ? SEG_OFF : ['text-sky-600', 'dark:text-sky-400'];
+      b.setAttribute('aria-pressed', on ? 'true' : 'false');
+      b.setAttribute('aria-label', label);
+      b.setAttribute('title', label);
+      SEG_ON.forEach(function (c) { b.classList.toggle(c, on); });
+      off.forEach(function (c) { b.classList.toggle(c, !on); });
     });
   }
 
@@ -1119,6 +1154,16 @@
     localStorage.setItem('ww.unit', state.unit);
     segment('unit-toggle', 'unit', state.unit);
     renderReport();
+  });
+  $('theme-toggle').addEventListener('click', function (e) {
+    var b = e.target.closest('button[data-theme]');
+    if (!b) return;
+    state.theme = b.dataset.theme;
+    // 'auto' removes the choice, so the head script follows Homeroom again.
+    if (state.theme === 'auto') localStorage.removeItem('ww.theme');
+    else localStorage.setItem('ww.theme', state.theme);
+    if (window.wwApplyTheme) window.wwApplyTheme();
+    paintTheme();
   });
 
   function setLang(lang, persist) {

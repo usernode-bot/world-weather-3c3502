@@ -95,16 +95,23 @@
   <link rel="stylesheet" href="/usernode-native/v1/native.css">
   <script src="/usernode-native/v1/native.js"></script>
   <!-- Follow the viewer's Homeroom theme (the bridge reports it), with the
-       OS preference as the fallback outside Homeroom. -->
+       OS preference as the fallback outside Homeroom. An explicit choice
+       made in the app (ww.theme in localStorage) overrides both until it is
+       removed again; the switch is in the header. -->
   <script>
     (function () {
       var media = window.matchMedia('(prefers-color-scheme: dark)');
+      function stored() {
+        try { var v = localStorage.getItem('ww.theme'); return v === 'light' || v === 'dark' ? v : null; }
+        catch (_) { return null; }
+      }
       function applyTheme() {
-        var theme = (window.usernode && window.usernode.theme) || (media.matches ? 'dark' : 'light');
+        var theme = stored() || (window.usernode && window.usernode.theme) || (media.matches ? 'dark' : 'light');
         document.documentElement.classList.toggle('dark', theme === 'dark');
         document.documentElement.style.colorScheme = theme;
       }
       applyTheme();
+      window.wwApplyTheme = applyTheme;
       window.addEventListener('usernode:theme-changed', applyTheme);
       media.addEventListener('change', applyTheme);
     })();
@@ -127,6 +134,11 @@
         <div class="inline-flex rounded-lg border border-zinc-200 dark:border-zinc-800 p-0.5 text-sm" role="group" id="unit-toggle" aria-label="Satuan suhu">
           <button type="button" data-unit="c" class="px-2.5 py-1 rounded-md">°C</button>
           <button type="button" data-unit="f" class="px-2.5 py-1 rounded-md">°F</button>
+        </div>
+        <div class="inline-flex rounded-lg border border-zinc-200 dark:border-zinc-800 p-0.5 text-sm" role="group" id="theme-toggle" aria-label="Tema">
+          <button type="button" data-theme="auto" class="px-2.5 py-1 rounded-md">Auto</button>
+          <button type="button" data-theme="light" class="px-2.5 py-1 rounded-md"><svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></svg></button>
+          <button type="button" data-theme="dark" class="px-2.5 py-1 rounded-md"><svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg></button>
         </div>
       </div>
     </header>

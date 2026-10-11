@@ -83,6 +83,9 @@
       noAlertsNws: 'Tidak ada peringatan aktif dari {src} untuk lokasi ini saat ini.',
       noAlertFeed: 'Peringatan resmi untuk lokasi ini tidak tersedia di aplikasi ini.',
       checkAgency: 'Periksa peringatan terbaru di {agency}.',
+      bannerTitle: 'Peringatan dini sedang berlaku',
+      bannerSeeAll: 'Lihat semua peringatan',
+      bannerMore: '+{n} peringatan lainnya',
       issuer: 'Penerbit',
       severity: 'Tingkat',
       until: 'Berlaku sampai {t}',
@@ -200,6 +203,9 @@
       noAlertsNws: 'No active warnings from {src} for this place right now.',
       noAlertFeed: 'Official warnings for this place are not available in this app.',
       checkAgency: 'Check {agency} for the latest warnings.',
+      bannerTitle: 'Weather warnings in effect',
+      bannerSeeAll: 'See all warnings',
+      bannerMore: '+{n} more warnings',
       issuer: 'Issued by',
       severity: 'Severity',
       until: 'In effect until {t}',
@@ -699,6 +705,7 @@
     });
     renderFavToggle();
     show('report', true);
+    renderBanner();
   }
 
   // ---------------------------------------------------------------- favorites
@@ -1048,6 +1055,83 @@
     return out;
   }
 
+  // ---------------------------------------------------------------- banner
+  // The red banner at the top of the page names the active severe warnings
+  // for the place on screen. It is a client-side view of the same alerts
+  // payload the warnings section renders, never a replacement for it:
+  // severity Extreme or Severe only, most severe and soonest to expire
+  // first, at most three lines. Dismissing is remembered per place in
+  // localStorage (ww.alertsDismissed) keyed by the exact set of severe
+  // warnings, so a new or changed warning reopens the banner while a reload
+  // of the same warnings stays quiet.
+  var SEVERE_RANK = { Extreme: 0, Severe: 1 };
+
+  function severeAlerts(w) {
+    var items = w && w.alerts && Array.isArray(w.alerts.items) ? w.alerts.items : [];
+    var now = Date.now();
+    return items.filter(function (a) {
+      return !!a.event && SEVERE_RANK.hasOwnProperty(a.severity)
+        && !(a.ends && new Date(a.ends).getTime() < now);
+    }).sort(function (a, b) {
+      return (SEVERE_RANK[a.severity] - SEVERE_RANK[b.severity])
+        || String(a.ends || '').localeCompare(String(b.ends || ''));
+    });
+  }
+
+  function severeKey(items) {
+    return items.map(function (a) { return (a.event || '') + '|' + (a.ends || ''); })
+      .sort().join(';');
+  }
+
+  function readDismissed() {
+    try {
+      var seen = JSON.parse(localStorage.getItem('ww.alertsDismissed') || '{}');
+      return seen && typeof seen === 'object' ? seen : {};
+    } catch (_) {
+      return {};
+    }
+  }
+
+  function renderBanner() {
+    var el = $('alert-banner');
+    if (!el) return;
+    var p = state.place, items = severeAlerts(state.weather);
+    if (!p || !items.length) { el.innerHTML = ''; show('alert-banner', false); return; }
+    var key = severeKey(items);
+    if (readDismissed()[p.id] === key) { show('alert-banner', false); return; }
+    var sev = STRINGS[state.lang].sev;
+    var shown = items.slice(0, 3);
+    var lines = shown.map(function (a) {
+      return '<li><span class="font-semibold">' + esc(a.event) + '</span>'
+        + ' · ' + esc(sev[a.severity] || a.severity)
+        + (a.ends ? ' · ' + esc(t('until', { t: new Date(a.ends).toLocaleString(STRINGS[state.lang].locale, { dateStyle: 'medium', timeStyle: 'short' }) })) : '')
+        + '</li>';
+    }).join('');
+    if (items.length > shown.length) {
+      lines += '<li>' + esc(t('bannerMore', { n: num(items.length - shown.length) })) + '</li>';
+    }
+    el.innerHTML = '<div class="rounded-xl border border-red-200 bg-red-50 dark:border-red-900/60 dark:bg-red-950/40 px-4 py-3">'
+      + '<div class="flex items-start gap-3">'
+      + icon('alert', 'w-5 h-5 shrink-0 mt-0.5 text-red-600 dark:text-red-400')
+      + '<div class="min-w-0 flex-1"><p class="font-semibold text-red-800 dark:text-red-200">' + esc(t('bannerTitle')) + '</p>'
+      + '<ul class="text-sm text-red-800 dark:text-red-200">' + lines + '</ul>'
+      + '<p class="text-sm mt-1"><button type="button" id="banner-see-all" class="font-medium text-sky-700 underline dark:text-sky-300 rounded focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500">' + esc(t('bannerSeeAll')) + '</button></p></div>'
+      + '<button type="button" id="banner-close" class="un-touch-target shrink-0 rounded-md p-1 text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500" aria-label="' + esc(t('close')) + '">'
+      + icon('x', 'w-4 h-4') + '</button>'
+      + '</div></div>';
+    show('alert-banner', true);
+    $('banner-see-all').addEventListener('click', function () {
+      var target = document.getElementById('alerts');
+      if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+    $('banner-close').addEventListener('click', function () {
+      var seen = readDismissed();
+      seen[p.id] = key;
+      try { localStorage.setItem('ww.alertsDismissed', JSON.stringify(seen)); } catch (_) {}
+      show('alert-banner', false);
+    });
+  }
+
   // ---------------------------------------------------------------- actions
   async function search(q) {
     q = q.trim();
@@ -1075,6 +1159,7 @@
     var seq = ++state.seq;
     state.place = place;
     state.weather = null;
+    renderBanner();
     state.reportBrowsePath = fromBrowse || null;
     state.lastAction = function () { choosePlace(place, fromBrowse); };
     show('results', false);

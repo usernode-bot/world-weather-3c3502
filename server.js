@@ -185,19 +185,136 @@ function norm(s) {
 // Open-Meteo matches the place name only, so "Ubud, Bali" finds nothing.
 // Search the first part and keep results whose region or country mention
 // every remaining part.
-async function geocode(query, lang) {
-  const [name, ...qualifiers] = query.split(',').map((p) => p.trim()).filter(Boolean);
-  if (!name) return [];
+
+// Administrative prefixes and country suffixes people type along with a place
+// name ("Sinjai selatan kab sinjai indonesia"). Compared after norm().
+const FILLER_WORDS = new Set([
+  'kab', 'kabupaten', 'kec', 'kecamatan', 'kota', 'kotamadya', 'kel', 'kelurahan',
+  'desa', 'ds', 'prov', 'provinsi', 'propinsi', 'indonesia',
+  'regency', 'district', 'subdistrict', 'city', 'province', 'village',
+]);
+
+// Split a search into the parts a geocoder can understand: a filler word acts
+// like a comma ("sinjai selatan kab sinjai" -> ["sinjai selatan", "sinjai"]).
+// "indonesia" is kept as a ranking hint, not a part to filter on.
+function cleanQuery(q) {
+  const parts = [];
+  const hints = [];
+  for (const raw of q.split(',')) {
+    let words = [];
+    for (const word of raw.split(/\s+/)) {
+      const w = norm(word).replace(/\.$/, '');
+      if (FILLER_WORDS.has(w)) {
+        if (w === 'indonesia') hints.push(w);
+        if (words.length) { parts.push(words.join(' ')); words = []; }
+      } else if (word) {
+        words.push(word);
+      }
+    }
+    if (words.length) parts.push(words.join(' '));
+  }
+  return { parts: parts.filter(Boolean), hints };
+}
+
+// Levenshtein ratio, for ranking fallback matches by how the names compare.
+function similarity(a, b) {
+  if (!a.length || !b.length) return 0;
+  const m = a.length;
+  const n = b.length;
+  let prev = new Array(n + 1);
+  let cur = new Array(n + 1);
+  for (let j = 0; j <= n; j++) prev[j] = j;
+  for (let i = 1; i <= m; i++) {
+    cur[0] = i;
+    for (let j = 1; j <= n; j++) {
+      cur[j] = Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+    }
+    [prev, cur] = [cur, prev];
+  }
+  return 1 - prev[n] / Math.max(m, n);
+}
+
+async function searchName(name, lang) {
   const url = `${GEOCODE_URL}?name=${encodeURIComponent(name)}&count=20&language=${lang}&format=json`;
   const data = await cached(`geo:${lang}:${norm(name)}`, 86_400_000, () => fetchJson(url));
-  let results = Array.isArray(data.results) ? data.results : [];
-  if (qualifiers.length) {
-    results = results.filter((r) => {
-      const hay = norm([r.admin1, r.admin2, r.admin3, r.admin4, r.country, r.country_code].join(' '));
-      return qualifiers.every((q) => hay.includes(norm(q)));
-    });
+  return Array.isArray(data.results) ? data.results : [];
+}
+
+// geocode() returns { results, fallback }: fallback=true means the results
+// come from a shorter search than what was typed, so the UI should say so.
+// At most 5 distinct upstream names are tried per request, in this order:
+//   0. the query as typed (today's behaviour, unchanged);
+//   1. the cleaned query, with filler words removed;
+//   2. the cleaned parts alone and word prefixes of the first part, with the
+//      best match ranked to the front and flagged as a fallback.
+async function geocode(query, lang) {
+  const rawParts = query.split(',').map((p) => p.trim()).filter(Boolean);
+  if (!rawParts.length) return { results: [], fallback: false };
+
+  let attempts = 0;
+  const search = async (name, qualifiers) => {
+    if (!name || attempts >= 5) return null;
+    attempts++;
+    let results = await searchName(name, lang);
+    if (qualifiers.length) {
+      results = results.filter((r) => {
+        const hay = norm([r.admin1, r.admin2, r.admin3, r.admin4, r.country, r.country_code].join(' '));
+        return qualifiers.every((q) => hay.includes(norm(q)));
+      });
+    }
+    return results;
+  };
+
+  // 0. Raw, exactly as before.
+  let results = await search(rawParts[0], rawParts.slice(1));
+  if (results && results.length) {
+    return { results: results.slice(0, 10).map(toPlace), fallback: false };
   }
-  return results.slice(0, 10).map(toPlace);
+
+  const { parts, hints } = cleanQuery(query);
+  if (!parts.length) return { results: [], fallback: false };
+  const same = parts.length === rawParts.length
+    && parts.every((p, i) => norm(p) === norm(rawParts[i]));
+
+  // 1. Cleaned: same place the filler words were hiding.
+  if (!same) {
+    results = await search(parts[0], parts.slice(1));
+    if (results && results.length) {
+      return { results: results.slice(0, 10).map(toPlace), fallback: false };
+    }
+  }
+
+  // 2. Fallback names: each cleaned part alone, then prefixes of the first
+  // part. The first name that finds anything wins; rank its results.
+  const candidates = [];
+  const seen = new Set();
+  for (const p of parts) {
+    const key = norm(p);
+    if (!seen.has(key)) { seen.add(key); candidates.push(p); }
+  }
+  const words = parts[0].split(/\s+/);
+  for (let end = words.length - 1; end >= 1; end--) {
+    const prefix = words.slice(0, end).join(' ');
+    const key = norm(prefix);
+    if (key.length >= 2 && !seen.has(key)) { seen.add(key); candidates.push(prefix); }
+  }
+  for (const name of candidates) {
+    results = await search(name, []);
+    if (!results || !results.length) continue;
+    const otherWords = parts.slice(1).concat(hints).map(norm);
+    const searched = norm(name);
+    const regionScore = (r) => {
+      const hay = norm([r.admin1, r.admin2, r.admin3, r.admin4, r.country].join(' '));
+      return otherWords.filter((w) => hay.includes(w)).length;
+    };
+    // Sort is stable, so equal keys keep the geocoder's own order.
+    results.sort((a, b) =>
+      similarity(norm(b.name), searched) - similarity(norm(a.name), searched)
+      || regionScore(b) - regionScore(a)
+      || (b.population || 0) - (a.population || 0));
+    return { results: results.slice(0, 5).map(toPlace), fallback: true };
+  }
+  return { results: [], fallback: false };
 }
 
 function distanceKm(lat1, lon1, lat2, lon2) {
@@ -302,7 +419,8 @@ app.get('/api/geocode', async (req, res) => {
   const q = String(req.query.q || '').trim().slice(0, 120);
   if (q.length < 2) return res.status(400).json({ error: 'query_too_short' });
   try {
-    res.json({ results: await geocode(q, langParam(req.query.lang)) });
+    const g = await geocode(q, langParam(req.query.lang));
+    res.json({ results: g.results, fallback: g.fallback });
   } catch (err) {
     console.warn('geocode failed: ' + err.message);
     res.status(502).json({ error: 'upstream_failed' });

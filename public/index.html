@@ -113,6 +113,11 @@
 <body class="bg-zinc-50 text-zinc-900 dark:bg-zinc-950 dark:text-zinc-100 min-h-screen">
   <main class="max-w-2xl mx-auto px-4 pt-6 pb-10 flex flex-col gap-6" style="padding-bottom: calc(2.5rem + var(--un-safe-inset-bottom, env(safe-area-inset-bottom, 0px)))">
 
+    <!-- Severe-weather banner for the place on screen, filled by app.js
+         renderBanner(). Stays hidden unless an Extreme/Severe warning is
+         active and has not been dismissed for this place. -->
+    <div id="alert-banner" role="alert" class="hidden"></div>
+
     <header class="flex flex-wrap items-center justify-between gap-3">
       <h1 class="text-2xl font-bold">World Weather</h1>
       <div class="flex flex-wrap items-center gap-2">

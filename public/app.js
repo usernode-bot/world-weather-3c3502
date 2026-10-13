@@ -114,6 +114,9 @@
         airSensitive: 'Kualitas udara kurang baik untuk kelompok sensitif. Batasi aktivitas berat di luar ruangan.',
         fog: 'Jarak pandang rendah. Berkendara lebih pelan dan nyalakan lampu.',
         fine: 'Cuaca cukup bersahabat untuk aktivitas di luar ruangan.',
+        runGood: 'Cuaca bagus untuk lari saat ini.',
+        runHot: 'Terlalu panas untuk lari di luar. Lari pagi-pagi atau sore hari.',
+        runWet: 'Terlalu basah untuk lari di luar. Pilih lari di dalam ruangan atau tunggu hujan reda.',
       },
       wmo: {
         0: 'Cerah', 1: 'Cerah berawan', 2: 'Berawan sebagian', 3: 'Berawan tebal',
@@ -231,6 +234,9 @@
         airSensitive: 'Air quality is poor for sensitive groups. Limit hard outdoor exercise.',
         fog: 'Visibility is low. Drive slowly and use your lights.',
         fine: 'Good conditions for being outdoors.',
+        runGood: 'Good running weather right now.',
+        runHot: 'Too hot to run outside. Run early in the morning or in the evening.',
+        runWet: 'Too wet to run outside. Run indoors or wait for the rain to pass.',
       },
       wmo: {
         0: 'Clear sky', 1: 'Mainly clear', 2: 'Partly cloudy', 3: 'Overcast',
@@ -1045,6 +1051,17 @@
       else if (w.air.usAqi > 100) out.push(tips.airSensitive);
     }
     if (!out.length) out.push(tips.fine);
+    // At most one running line, checked in order: hot, wet, good. Only the
+    // fetched values decide; a missing value just means no good line.
+    var probs = (h.precipitation_probability || []).slice(0, 12).filter(has);
+    var feels = c.apparent_temperature, gust = c.wind_gusts_10m;
+    var storm = codes.some(function (x) { return x >= 95; });
+    var wetNow = has(c.weather_code) && c.weather_code >= 51;
+    var airOk = !(w.air && has(w.air.usAqi) && w.air.usAqi > 100);
+    if (has(feels) && feels > 30) out.push(tips.runHot);
+    else if (maxRain >= 60 || storm || wetNow) out.push(tips.runWet);
+    else if (probs.length >= 12 && Math.max.apply(null, probs) < 30 && has(c.weather_code)
+      && has(feels) && feels >= 5 && has(gust) && gust < 30 && airOk) out.push(tips.runGood);
     return out;
   }
 

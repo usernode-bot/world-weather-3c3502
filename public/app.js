@@ -18,7 +18,9 @@
       emptyBody: 'Ketik nama negara, kota, kecamatan, atau desa. Tambahkan wilayah setelah koma agar lebih tepat, misalnya "Ubud, Bali".',
       searching: 'Mencari lokasi…',
       loading: 'Memuat cuaca…',
-      noResults: 'Lokasi "{q}" tidak ditemukan. Periksa ejaan atau coba nama tempat yang lebih besar di dekatnya.',
+      noResults: 'Lokasi "{q}" tidak ditemukan. Ketik nama tempat, lalu wilayahnya setelah koma. Coba: Sinjai, Sulawesi Selatan',
+      fallbackNote: 'Menampilkan cuaca terdekat: {name}',
+      fallbackPick: 'Atau pilih tempat lain yang mungkin Anda maksud:',
       tooShort: 'Ketik setidaknya 2 huruf.',
       searchError: 'Pencarian lokasi gagal. Periksa koneksi lalu coba lagi.',
       weatherError: 'Data cuaca tidak dapat diambil saat ini. Coba lagi sebentar lagi.',
@@ -87,6 +89,9 @@
       noAlertsNws: 'Tidak ada peringatan aktif dari {src} untuk lokasi ini saat ini.',
       noAlertFeed: 'Peringatan resmi untuk lokasi ini tidak tersedia di aplikasi ini.',
       checkAgency: 'Periksa peringatan terbaru di {agency}.',
+      bannerTitle: 'Peringatan dini sedang berlaku',
+      bannerSeeAll: 'Lihat semua peringatan',
+      bannerMore: '+{n} peringatan lainnya',
       issuer: 'Penerbit',
       severity: 'Tingkat',
       until: 'Berlaku sampai {t}',
@@ -118,6 +123,9 @@
         airSensitive: 'Kualitas udara kurang baik untuk kelompok sensitif. Batasi aktivitas berat di luar ruangan.',
         fog: 'Jarak pandang rendah. Berkendara lebih pelan dan nyalakan lampu.',
         fine: 'Cuaca cukup bersahabat untuk aktivitas di luar ruangan.',
+        runGood: 'Cuaca bagus untuk lari saat ini.',
+        runHot: 'Terlalu panas untuk lari di luar. Lari pagi-pagi atau sore hari.',
+        runWet: 'Terlalu basah untuk lari di luar. Pilih lari di dalam ruangan atau tunggu hujan reda.',
       },
       wmo: {
         0: 'Cerah', 1: 'Cerah berawan', 2: 'Berawan sebagian', 3: 'Berawan tebal',
@@ -139,7 +147,9 @@
       emptyBody: 'Type a country, city, district or village. Add a region after a comma to narrow it down, for example "Ubud, Bali".',
       searching: 'Searching…',
       loading: 'Loading weather…',
-      noResults: 'No place called "{q}" was found. Check the spelling or try a larger place nearby.',
+      noResults: 'No place called "{q}" was found. Type the place name, then its region after a comma. Try: Sinjai, South Sulawesi',
+      fallbackNote: 'Showing the nearest weather: {name}',
+      fallbackPick: 'Or choose another place you might mean:',
       tooShort: 'Type at least 2 letters.',
       searchError: 'The place search failed. Check your connection and try again.',
       weatherError: 'Weather data could not be loaded right now. Try again in a moment.',
@@ -208,6 +218,9 @@
       noAlertsNws: 'No active warnings from {src} for this place right now.',
       noAlertFeed: 'Official warnings for this place are not available in this app.',
       checkAgency: 'Check {agency} for the latest warnings.',
+      bannerTitle: 'Weather warnings in effect',
+      bannerSeeAll: 'See all warnings',
+      bannerMore: '+{n} more warnings',
       issuer: 'Issued by',
       severity: 'Severity',
       until: 'In effect until {t}',
@@ -239,6 +252,9 @@
         airSensitive: 'Air quality is poor for sensitive groups. Limit hard outdoor exercise.',
         fog: 'Visibility is low. Drive slowly and use your lights.',
         fine: 'Good conditions for being outdoors.',
+        runGood: 'Good running weather right now.',
+        runHot: 'Too hot to run outside. Run early in the morning or in the evening.',
+        runWet: 'Too wet to run outside. Run indoors or wait for the rain to pass.',
       },
       wmo: {
         0: 'Clear sky', 1: 'Mainly clear', 2: 'Partly cloudy', 3: 'Overcast',
@@ -323,6 +339,9 @@
     // The browse levels the open report was picked from (null when it was
     // opened any other way), so "Change area" can go back to its siblings.
     reportBrowsePath: null,
+    // Set when the open report came from a fallback search: { fallback,
+    // suggestions }, so the report shows the note and the other options.
+    searchFallback: null,
     lists: {},
     filter: '',
   };
@@ -561,10 +580,10 @@
     if (retry) retry.addEventListener('click', function () { state.lastAction(); });
   }
 
-  function renderResults(q, results) {
-    var el = $('results');
-    el.innerHTML = '<h2 class="text-sm text-zinc-600 dark:text-zinc-400 mb-2 px-1">' + esc(t('pickTitle', { n: results.length, q: q })) + '</h2>'
-      + '<ul class="rounded-xl border border-zinc-200 bg-white divide-y divide-zinc-200 overflow-hidden dark:border-zinc-800 dark:bg-zinc-900 dark:divide-zinc-800">'
+  // The list of matching places used both by the search results and by the
+  // suggestions under a fallback report. Callers wire the button clicks.
+  function placeListHtml(results) {
+    return '<ul class="rounded-xl border border-zinc-200 bg-white divide-y divide-zinc-200 overflow-hidden dark:border-zinc-800 dark:bg-zinc-900 dark:divide-zinc-800">'
       + results.map(function (p, i) {
         return '<li><button type="button" data-i="' + i + '" class="un-pressable w-full text-left px-4 py-3 flex items-center justify-between gap-3 hover:bg-zinc-50 dark:hover:bg-zinc-800/60 focus:outline-none focus-visible:bg-zinc-100 dark:focus-visible:bg-zinc-800">'
           + '<span class="min-w-0"><span class="block font-semibold truncate">' + esc(p.name) + '</span>'
@@ -572,6 +591,12 @@
           + '<span class="shrink-0 text-xs text-zinc-500 dark:text-zinc-400">' + esc(placeKind(p.featureCode)) + '</span>'
           + '</button></li>';
       }).join('') + '</ul>';
+  }
+
+  function renderResults(q, results) {
+    var el = $('results');
+    el.innerHTML = '<h2 class="text-sm text-zinc-600 dark:text-zinc-400 mb-2 px-1">' + esc(t('pickTitle', { n: results.length, q: q })) + '</h2>'
+      + placeListHtml(results);
     el.querySelectorAll('button[data-i]').forEach(function (b) {
       b.addEventListener('click', function () { choosePlace(results[Number(b.dataset.i)]); });
     });
@@ -598,6 +623,7 @@
 
     // Location
     var notes = [];
+    if (state.searchFallback) notes.push(t('fallbackNote', { name: p.name }));
     if (isArea(p.featureCode)) notes.push(t('areaNote'));
     if (w.grid && w.grid.distanceKm >= 1) notes.push(t('gridNote', { d: num(w.grid.distanceKm, w.grid.distanceKm < 10 ? 1 : 0) }));
     html += '<section id="location">'
@@ -614,6 +640,10 @@
       + '<button type="button" id="fav-toggle" class="shrink-0 inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-sm font-medium focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500"></button>'
       + '</div>'
       + notes.map(function (n) { return '<p class="mt-2 text-sm text-amber-800 dark:text-amber-200">' + esc(n) + '</p>'; }).join('')
+      + (state.searchFallback && state.searchFallback.suggestions && state.searchFallback.suggestions.length
+        ? '<p class="text-sm text-zinc-600 dark:text-zinc-400 mt-3 mb-2 px-1">' + esc(t('fallbackPick')) + '</p>'
+          + placeListHtml(state.searchFallback.suggestions)
+        : '')
       + '</section>';
 
     // Current
@@ -727,6 +757,12 @@
 
     $('report').innerHTML = html;
     $('fav-toggle').addEventListener('click', function () { toggleFavorite(p); });
+    if (state.searchFallback && state.searchFallback.suggestions) {
+      var suggestions = state.searchFallback.suggestions;
+      $('report').querySelectorAll('#location button[data-i]').forEach(function (b) {
+        b.addEventListener('click', function () { choosePlace(suggestions[Number(b.dataset.i)]); });
+      });
+    }
     if ($('change-area')) $('change-area').addEventListener('click', function () {
       state.browseOpen = true;
       if (state.favOpen) { state.favOpen = false; renderFavorites(); }
@@ -734,6 +770,7 @@
     });
     renderFavToggle();
     show('report', true);
+    renderBanner();
   }
 
   // ---------------------------------------------------------------- favorites
@@ -1080,7 +1117,95 @@
       else if (w.air.usAqi > 100) out.push(tips.airSensitive);
     }
     if (!out.length) out.push(tips.fine);
+    // At most one running line, checked in order: hot, wet, good. Only the
+    // fetched values decide; a missing value just means no good line.
+    var probs = (h.precipitation_probability || []).slice(0, 12).filter(has);
+    var feels = c.apparent_temperature, gust = c.wind_gusts_10m;
+    var storm = codes.some(function (x) { return x >= 95; });
+    var wetNow = has(c.weather_code) && c.weather_code >= 51;
+    var airOk = !(w.air && has(w.air.usAqi) && w.air.usAqi > 100);
+    if (has(feels) && feels > 30) out.push(tips.runHot);
+    else if (maxRain >= 60 || storm || wetNow) out.push(tips.runWet);
+    else if (probs.length >= 12 && Math.max.apply(null, probs) < 30 && has(c.weather_code)
+      && has(feels) && feels >= 5 && has(gust) && gust < 30 && airOk) out.push(tips.runGood);
     return out;
+  }
+
+  // ---------------------------------------------------------------- banner
+  // The red banner at the top of the page names the active severe warnings
+  // for the place on screen. It is a client-side view of the same alerts
+  // payload the warnings section renders, never a replacement for it:
+  // severity Extreme or Severe only, most severe and soonest to expire
+  // first, at most three lines. Dismissing is remembered per place in
+  // localStorage (ww.alertsDismissed) keyed by the exact set of severe
+  // warnings, so a new or changed warning reopens the banner while a reload
+  // of the same warnings stays quiet.
+  var SEVERE_RANK = { Extreme: 0, Severe: 1 };
+
+  function severeAlerts(w) {
+    var items = w && w.alerts && Array.isArray(w.alerts.items) ? w.alerts.items : [];
+    var now = Date.now();
+    return items.filter(function (a) {
+      return !!a.event && SEVERE_RANK.hasOwnProperty(a.severity)
+        && !(a.ends && new Date(a.ends).getTime() < now);
+    }).sort(function (a, b) {
+      return (SEVERE_RANK[a.severity] - SEVERE_RANK[b.severity])
+        || String(a.ends || '').localeCompare(String(b.ends || ''));
+    });
+  }
+
+  function severeKey(items) {
+    return items.map(function (a) { return (a.event || '') + '|' + (a.ends || ''); })
+      .sort().join(';');
+  }
+
+  function readDismissed() {
+    try {
+      var seen = JSON.parse(localStorage.getItem('ww.alertsDismissed') || '{}');
+      return seen && typeof seen === 'object' ? seen : {};
+    } catch (_) {
+      return {};
+    }
+  }
+
+  function renderBanner() {
+    var el = $('alert-banner');
+    if (!el) return;
+    var p = state.place, items = severeAlerts(state.weather);
+    if (!p || !items.length) { el.innerHTML = ''; show('alert-banner', false); return; }
+    var key = severeKey(items);
+    if (readDismissed()[p.id] === key) { show('alert-banner', false); return; }
+    var sev = STRINGS[state.lang].sev;
+    var shown = items.slice(0, 3);
+    var lines = shown.map(function (a) {
+      return '<li><span class="font-semibold">' + esc(a.event) + '</span>'
+        + ' · ' + esc(sev[a.severity] || a.severity)
+        + (a.ends ? ' · ' + esc(t('until', { t: new Date(a.ends).toLocaleString(STRINGS[state.lang].locale, { dateStyle: 'medium', timeStyle: 'short' }) })) : '')
+        + '</li>';
+    }).join('');
+    if (items.length > shown.length) {
+      lines += '<li>' + esc(t('bannerMore', { n: num(items.length - shown.length) })) + '</li>';
+    }
+    el.innerHTML = '<div class="rounded-xl border border-red-200 bg-red-50 dark:border-red-900/60 dark:bg-red-950/40 px-4 py-3">'
+      + '<div class="flex items-start gap-3">'
+      + icon('alert', 'w-5 h-5 shrink-0 mt-0.5 text-red-600 dark:text-red-400')
+      + '<div class="min-w-0 flex-1"><p class="font-semibold text-red-800 dark:text-red-200">' + esc(t('bannerTitle')) + '</p>'
+      + '<ul class="text-sm text-red-800 dark:text-red-200">' + lines + '</ul>'
+      + '<p class="text-sm mt-1"><button type="button" id="banner-see-all" class="font-medium text-sky-700 underline dark:text-sky-300 rounded focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500">' + esc(t('bannerSeeAll')) + '</button></p></div>'
+      + '<button type="button" id="banner-close" class="un-touch-target shrink-0 rounded-md p-1 text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500" aria-label="' + esc(t('close')) + '">'
+      + icon('x', 'w-4 h-4') + '</button>'
+      + '</div></div>';
+    show('alert-banner', true);
+    $('banner-see-all').addEventListener('click', function () {
+      var target = document.getElementById('alerts');
+      if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+    $('banner-close').addEventListener('click', function () {
+      var seen = readDismissed();
+      seen[p.id] = key;
+      try { localStorage.setItem('ww.alertsDismissed', JSON.stringify(seen)); } catch (_) {}
+      show('alert-banner', false);
+    });
   }
 
   // ---------------------------------------------------------------- actions
@@ -1088,6 +1213,7 @@
     q = q.trim();
     var seq = ++state.seq;
     state.lastAction = function () { search(q); };
+    state.searchFallback = null;
     show('results', false);
     if (q.length < 2) { setStatus('info', t('tooShort')); return; }
     setStatus('loading', t('searching'));
@@ -1096,6 +1222,10 @@
       if (seq !== state.seq) return;
       var results = data.results || [];
       if (!results.length) { setStatus('info', t('noResults', { q: q })); return; }
+      if (data.fallback) {
+        choosePlace(results[0], null, { fallback: true, suggestions: results.slice(1, 5) });
+        return;
+      }
       if (results.length === 1) { choosePlace(results[0]); return; }
       setStatus('none');
       show('report', false);
@@ -1106,12 +1236,14 @@
     }
   }
 
-  async function choosePlace(place, fromBrowse) {
+  async function choosePlace(place, fromBrowse, opts) {
     var seq = ++state.seq;
     state.place = place;
     state.weather = null;
+    renderBanner();
     state.reportBrowsePath = fromBrowse || null;
-    state.lastAction = function () { choosePlace(place, fromBrowse); };
+    state.searchFallback = opts || null;
+    state.lastAction = function () { choosePlace(place, fromBrowse, opts); };
     show('results', false);
     show('report', false);
     setStatus('loading', t('loading'));

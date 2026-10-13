@@ -12,7 +12,11 @@ villages, shown in Indonesian or English.
   third are marked as less certain.
 - **Weather warnings.** Official NWS alerts for US locations. Elsewhere the
   app says that no feed is available and links to the national
-  meteorological agency (BMKG, Met Office, JMA, …).
+  meteorological agency (BMKG, Met Office, JMA, …). When an active warning
+  is severe or extreme, a red banner at the very top of the page names it
+  with its severity and end time and links down to this section. The ×
+  hides the banner for that place until its warnings change; the section
+  itself is never hidden, and it keeps listing every active warning.
 - **More info.** Sunrise and sunset, US AQI from Open-Meteo air quality, and
   short advice derived from those values.
 

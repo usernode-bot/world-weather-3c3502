@@ -18,7 +18,9 @@
       emptyBody: 'Ketik nama negara, kota, kecamatan, atau desa. Tambahkan wilayah setelah koma agar lebih tepat, misalnya "Ubud, Bali".',
       searching: 'Mencari lokasi…',
       loading: 'Memuat cuaca…',
-      noResults: 'Lokasi "{q}" tidak ditemukan. Periksa ejaan atau coba nama tempat yang lebih besar di dekatnya.',
+      noResults: 'Lokasi "{q}" tidak ditemukan. Ketik nama tempat, lalu wilayahnya setelah koma. Coba: Sinjai, Sulawesi Selatan',
+      fallbackNote: 'Menampilkan cuaca terdekat: {name}',
+      fallbackPick: 'Atau pilih tempat lain yang mungkin Anda maksud:',
       tooShort: 'Ketik setidaknya 2 huruf.',
       searchError: 'Pencarian lokasi gagal. Periksa koneksi lalu coba lagi.',
       weatherError: 'Data cuaca tidak dapat diambil saat ini. Coba lagi sebentar lagi.',
@@ -141,7 +143,9 @@
       emptyBody: 'Type a country, city, district or village. Add a region after a comma to narrow it down, for example "Ubud, Bali".',
       searching: 'Searching…',
       loading: 'Loading weather…',
-      noResults: 'No place called "{q}" was found. Check the spelling or try a larger place nearby.',
+      noResults: 'No place called "{q}" was found. Type the place name, then its region after a comma. Try: Sinjai, South Sulawesi',
+      fallbackNote: 'Showing the nearest weather: {name}',
+      fallbackPick: 'Or choose another place you might mean:',
       tooShort: 'Type at least 2 letters.',
       searchError: 'The place search failed. Check your connection and try again.',
       weatherError: 'Weather data could not be loaded right now. Try again in a moment.',
@@ -325,6 +329,9 @@
     // The browse levels the open report was picked from (null when it was
     // opened any other way), so "Change area" can go back to its siblings.
     reportBrowsePath: null,
+    // Set when the open report came from a fallback search: { fallback,
+    // suggestions }, so the report shows the note and the other options.
+    searchFallback: null,
     lists: {},
     filter: '',
   };
@@ -538,10 +545,10 @@
     if (retry) retry.addEventListener('click', function () { state.lastAction(); });
   }
 
-  function renderResults(q, results) {
-    var el = $('results');
-    el.innerHTML = '<h2 class="text-sm text-zinc-600 dark:text-zinc-400 mb-2 px-1">' + esc(t('pickTitle', { n: results.length, q: q })) + '</h2>'
-      + '<ul class="rounded-xl border border-zinc-200 bg-white divide-y divide-zinc-200 overflow-hidden dark:border-zinc-800 dark:bg-zinc-900 dark:divide-zinc-800">'
+  // The list of matching places used both by the search results and by the
+  // suggestions under a fallback report. Callers wire the button clicks.
+  function placeListHtml(results) {
+    return '<ul class="rounded-xl border border-zinc-200 bg-white divide-y divide-zinc-200 overflow-hidden dark:border-zinc-800 dark:bg-zinc-900 dark:divide-zinc-800">'
       + results.map(function (p, i) {
         return '<li><button type="button" data-i="' + i + '" class="un-pressable w-full text-left px-4 py-3 flex items-center justify-between gap-3 hover:bg-zinc-50 dark:hover:bg-zinc-800/60 focus:outline-none focus-visible:bg-zinc-100 dark:focus-visible:bg-zinc-800">'
           + '<span class="min-w-0"><span class="block font-semibold truncate">' + esc(p.name) + '</span>'
@@ -549,6 +556,12 @@
           + '<span class="shrink-0 text-xs text-zinc-500 dark:text-zinc-400">' + esc(placeKind(p.featureCode)) + '</span>'
           + '</button></li>';
       }).join('') + '</ul>';
+  }
+
+  function renderResults(q, results) {
+    var el = $('results');
+    el.innerHTML = '<h2 class="text-sm text-zinc-600 dark:text-zinc-400 mb-2 px-1">' + esc(t('pickTitle', { n: results.length, q: q })) + '</h2>'
+      + placeListHtml(results);
     el.querySelectorAll('button[data-i]').forEach(function (b) {
       b.addEventListener('click', function () { choosePlace(results[Number(b.dataset.i)]); });
     });
@@ -575,6 +588,7 @@
 
     // Location
     var notes = [];
+    if (state.searchFallback) notes.push(t('fallbackNote', { name: p.name }));
     if (isArea(p.featureCode)) notes.push(t('areaNote'));
     if (w.grid && w.grid.distanceKm >= 1) notes.push(t('gridNote', { d: num(w.grid.distanceKm, w.grid.distanceKm < 10 ? 1 : 0) }));
     html += '<section id="location">'
@@ -591,6 +605,10 @@
       + '<button type="button" id="fav-toggle" class="shrink-0 inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-sm font-medium focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500"></button>'
       + '</div>'
       + notes.map(function (n) { return '<p class="mt-2 text-sm text-amber-800 dark:text-amber-200">' + esc(n) + '</p>'; }).join('')
+      + (state.searchFallback && state.searchFallback.suggestions && state.searchFallback.suggestions.length
+        ? '<p class="text-sm text-zinc-600 dark:text-zinc-400 mt-3 mb-2 px-1">' + esc(t('fallbackPick')) + '</p>'
+          + placeListHtml(state.searchFallback.suggestions)
+        : '')
       + '</section>';
 
     // Current
@@ -704,6 +722,12 @@
 
     $('report').innerHTML = html;
     $('fav-toggle').addEventListener('click', function () { toggleFavorite(p); });
+    if (state.searchFallback && state.searchFallback.suggestions) {
+      var suggestions = state.searchFallback.suggestions;
+      $('report').querySelectorAll('#location button[data-i]').forEach(function (b) {
+        b.addEventListener('click', function () { choosePlace(suggestions[Number(b.dataset.i)]); });
+      });
+    }
     if ($('change-area')) $('change-area').addEventListener('click', function () {
       state.browseOpen = true;
       if (state.favOpen) { state.favOpen = false; renderFavorites(); }
@@ -1154,6 +1178,7 @@
     q = q.trim();
     var seq = ++state.seq;
     state.lastAction = function () { search(q); };
+    state.searchFallback = null;
     show('results', false);
     if (q.length < 2) { setStatus('info', t('tooShort')); return; }
     setStatus('loading', t('searching'));
@@ -1162,6 +1187,10 @@
       if (seq !== state.seq) return;
       var results = data.results || [];
       if (!results.length) { setStatus('info', t('noResults', { q: q })); return; }
+      if (data.fallback) {
+        choosePlace(results[0], null, { fallback: true, suggestions: results.slice(1, 5) });
+        return;
+      }
       if (results.length === 1) { choosePlace(results[0]); return; }
       setStatus('none');
       show('report', false);
@@ -1172,13 +1201,14 @@
     }
   }
 
-  async function choosePlace(place, fromBrowse) {
+  async function choosePlace(place, fromBrowse, opts) {
     var seq = ++state.seq;
     state.place = place;
     state.weather = null;
     renderBanner();
     state.reportBrowsePath = fromBrowse || null;
-    state.lastAction = function () { choosePlace(place, fromBrowse); };
+    state.searchFallback = opts || null;
+    state.lastAction = function () { choosePlace(place, fromBrowse, opts); };
     show('results', false);
     show('report', false);
     setStatus('loading', t('loading'));

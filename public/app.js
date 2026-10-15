@@ -11,6 +11,10 @@
   // ---------------------------------------------------------------- strings
   var STRINGS = {
     id: {
+      locate: 'Lokasi saya',
+      locateLabel: 'Tunjukkan cuaca di lokasi Anda',
+      locating: 'Mendapatkan lokasi Anda…',
+      geoError: 'Lokasi Anda tidak dapat didapatkan. Izinkan akses lokasi lalu coba lagi.',
       searchLabel: 'Cari lokasi',
       searchPlaceholder: 'Negara, kota, atau desa',
       searchButton: 'Cari',
@@ -124,6 +128,10 @@
       locale: 'id-ID',
     },
     en: {
+      locate: 'My location',
+      locateLabel: 'Show the weather where you are',
+      locating: 'Getting your location…',
+      geoError: 'Your location could not be found. Allow location access and try again.',
       searchLabel: 'Search for a place',
       searchPlaceholder: 'Country, city or village',
       searchButton: 'Search',
@@ -412,6 +420,7 @@
     x: '<path d="M18 6 6 18"/><path d="m6 6 12 12"/>',
     chevron: '<path d="m9 18 6-6-6-6"/>',
     map: '<path d="M14.106 5.553a2 2 0 0 0 1.788 0l3.659-1.83A1 1 0 0 1 21 4.619v12.764a1 1 0 0 1-.553.894l-4.553 2.277a2 2 0 0 1-1.788 0l-4.212-2.106a2 2 0 0 0-1.788 0l-3.659 1.83A1 1 0 0 1 3 19.381V6.618a1 1 0 0 1 .553-.894l4.553-2.277a2 2 0 0 1 1.788 0z"/><path d="M15 5.764v15"/><path d="M9 3.236v15"/>',
+    locate: '<line x1="2" x2="5" y1="12" y2="12"/><line x1="19" x2="22" y1="12" y2="12"/><line x1="12" x2="12" y1="2" y2="5"/><line x1="12" x2="12" y1="19" y2="22"/><circle cx="12" cy="12" r="7"/>',
     alert: '<path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4"/><path d="M12 17h.01"/>',
   };
   function iconFor(code, isDay) {
@@ -460,6 +469,7 @@
     $('unit-toggle').setAttribute('aria-label', state.lang === 'id' ? 'Satuan suhu' : 'Temperature unit');
     segment('lang-toggle', 'lang', state.lang);
     segment('unit-toggle', 'unit', state.unit);
+    renderLocateButton();
     renderFavoritesButton();
     renderBrowseButton();
   }
@@ -507,6 +517,13 @@
     if (retry) retry.addEventListener('click', function () { state.lastAction(); });
   }
 
+  function renderLocateButton() {
+    var b = $('locate-btn');
+    b.innerHTML = icon('locate', 'w-4 h-4 text-sky-600 dark:text-sky-400')
+      + '<span>' + esc(t('locate')) + '</span>';
+    b.setAttribute('aria-label', t('locateLabel'));
+  }
+
   function renderResults(q, results) {
     var el = $('results');
     el.innerHTML = '<h2 class="text-sm text-zinc-600 dark:text-zinc-400 mb-2 px-1">' + esc(t('pickTitle', { n: results.length, q: q })) + '</h2>'
@@ -546,6 +563,10 @@
     var notes = [];
     if (isArea(p.featureCode)) notes.push(t('areaNote'));
     if (w.grid && w.grid.distanceKm >= 1) notes.push(t('gridNote', { d: num(w.grid.distanceKm, w.grid.distanceKm < 10 ? 1 : 0) }));
+    // A geolocated report has no place record, so nothing behind it can be
+    // saved and the elevation comes from the weather data's grid point.
+    var transient = !p.id;
+    var elevation = has(p.elevation) ? p.elevation : (w.grid ? w.grid.elevation : null);
     html += '<section id="location">'
       + '<div class="flex items-start justify-between gap-3"><div class="min-w-0">'
       + '<div class="flex items-baseline gap-2 flex-wrap"><h2 class="text-xl font-bold" id="place-name">' + esc(p.name) + '</h2>'
@@ -555,9 +576,9 @@
         ? '<button type="button" id="change-area" aria-controls="browse" class="text-sm text-sky-700 dark:text-sky-300 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 rounded">' + esc(t('changeArea')) + '</button>'
         : '')
       + '<p class="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">' + esc(t('coords', {
-        lat: num(p.latitude, 4), lon: num(p.longitude, 4), e: has(p.elevation) ? num(p.elevation) : '-',
+        lat: num(p.latitude, 4), lon: num(p.longitude, 4), e: has(elevation) ? num(elevation) : '-',
       })) + '</p></div>'
-      + '<button type="button" id="fav-toggle" class="shrink-0 inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-sm font-medium focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500"></button>'
+      + (transient ? '' : '<button type="button" id="fav-toggle" class="shrink-0 inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-sm font-medium focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500"></button>')
       + '</div>'
       + notes.map(function (n) { return '<p class="mt-2 text-sm text-amber-800 dark:text-amber-200">' + esc(n) + '</p>'; }).join('')
       + '</section>';
@@ -672,7 +693,7 @@
       })) + '</p></footer>';
 
     $('report').innerHTML = html;
-    $('fav-toggle').addEventListener('click', function () { toggleFavorite(p); });
+    if ($('fav-toggle')) $('fav-toggle').addEventListener('click', function () { toggleFavorite(p); });
     if ($('change-area')) $('change-area').addEventListener('click', function () {
       state.browseOpen = true;
       if (state.favOpen) { state.favOpen = false; renderFavorites(); }
@@ -1052,16 +1073,20 @@
     }
   }
 
-  async function choosePlace(place, fromBrowse) {
+  async function choosePlace(place, fromBrowse, opts) {
     var seq = ++state.seq;
     state.place = place;
     state.weather = null;
     state.reportBrowsePath = fromBrowse || null;
-    state.lastAction = function () { choosePlace(place, fromBrowse); };
+    state.lastAction = opts && opts.transient
+      ? function () { openMyLocation(); }
+      : function () { choosePlace(place, fromBrowse); };
     show('results', false);
     show('report', false);
     setStatus('loading', t('loading'));
-    rememberPlace(place);
+    // A geolocated report has no place record behind it, so it is not
+    // remembered: reloading must not reopen coordinates nobody chose to keep.
+    if (!opts || !opts.transient) rememberPlace(place);
     try {
       var w = await api('/api/weather?lat=' + place.latitude + '&lon=' + place.longitude + '&cc=' + encodeURIComponent(place.countryCode || ''));
       if (seq !== state.seq) return;
@@ -1071,6 +1096,66 @@
     } catch (_) {
       if (seq !== state.seq) return;
       setStatus('error', t('weatherError'));
+    }
+  }
+
+  // Ask the browser where the viewer is, name the coordinates, and open the
+  // report for them. Coordinates are used once and not stored: no ww.place,
+  // no ?place=, no favorite. With silent=true (the automatic first-load call)
+  // every failure falls back to the "search for a place" screen without a
+  // banner; an explicit tap reports itself through the error panel with a
+  // retry, because the person asked for it and should learn what happened.
+  async function openMyLocation(silent) {
+    var seq = ++state.seq;
+    state.lastAction = function () { openMyLocation(); };
+    show('results', false);
+    var fail = function () {
+      if (silent) setStatus('empty');
+      else setStatus('error', t('geoError'));
+    };
+    if (!('geolocation' in navigator)) {
+      fail();
+      return;
+    }
+    setStatus('loading', t('locating'));
+    // Inside the Homeroom shell geolocation is a gated capability: the shell
+    // owns the prompt (so it can name the app) and only delegates the
+    // capability to this frame once the viewer grants it there. Outside the
+    // shell this rejects and the plain browser prompt below takes over.
+    if (window.usernode && typeof usernode.requestPermission === 'function') {
+      var ask = null;
+      try { ask = await usernode.requestPermission('geolocation'); }
+      catch (_) { /* no platform shell — use the plain browser prompt */ }
+      if (seq !== state.seq) return;
+      if (ask && ask.state === 'denied') { fail(); return; }
+      if (ask && ask.state === 'granted' && !ask.active) {
+        // The shell is reloading the frame to apply the fresh grant; the
+        // first-load attempt re-runs on its own after that.
+        setStatus('empty');
+        return;
+      }
+    }
+    var pos;
+    try {
+      pos = await new Promise(function (resolve, reject) {
+        navigator.geolocation.getCurrentPosition(resolve, reject, {
+          enableHighAccuracy: false, timeout: 10000, maximumAge: 300000,
+        });
+      });
+    } catch (err) {
+      if (seq !== state.seq) return;
+      fail();
+      return;
+    }
+    if (seq !== state.seq) return;
+    var lat = pos.coords.latitude, lon = pos.coords.longitude;
+    try {
+      var data = await api('/api/reverse?lat=' + lat + '&lon=' + lon + '&lang=' + state.lang);
+      if (seq !== state.seq) return;
+      choosePlace(data.place, null, { transient: true });
+    } catch (_) {
+      if (seq !== state.seq) return;
+      fail();
     }
   }
 
@@ -1105,6 +1190,7 @@
     $('search-input').blur();
     search($('search-input').value);
   });
+  $('locate-btn').addEventListener('click', function () { openMyLocation(); });
   $('favorites-btn').addEventListener('click', function () { setFavOpen(!state.favOpen); });
   $('browse-btn').addEventListener('click', function () { setBrowseOpen(!state.browseOpen); });
   $('lang-toggle').addEventListener('click', function (e) {
@@ -1131,8 +1217,10 @@
     renderBrowse();
     if (!changed) return;
     // Place names come back in the chosen language too, so reload whatever
-    // is on screen (or still loading) rather than only relabelling it.
-    if (state.place) openPlaceId(state.place.id, state.reportBrowsePath);
+    // is on screen (or still loading) rather than only relabelling it. A
+    // geolocated report has no place id to reopen; locate again instead.
+    if (state.place && !state.place.id) openMyLocation();
+    else if (state.place) openPlaceId(state.place.id, state.reportBrowsePath);
     else if (state.lastAction) state.lastAction();
     else setStatus('empty');
   }
@@ -1176,5 +1264,8 @@
 
   var startId = Number(params.get('place') || localStorage.getItem('ww.place'));
   if (Number.isInteger(startId) && startId > 0) openPlaceId(startId);
+  // Nothing chosen yet: try the viewer's own location once, silently. A
+  // ?browse link came here to browse, not to answer a permission prompt.
+  else if (!params.has('browse') && 'geolocation' in navigator) openMyLocation(true);
   else setStatus('empty');
 })();

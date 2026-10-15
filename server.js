@@ -120,11 +120,13 @@ app.get('/favicon.ico', (_req, res) => res.sendFile(path.join(__dirname, 'public
 //   Open-Meteo forecast   https://open-meteo.com/en/docs
 //   Open-Meteo air quality https://open-meteo.com/en/docs/air-quality-api
 //   NWS alerts (US only)  https://www.weather.gov/documentation/services-web-api
+//   Nominatim reverse     https://nominatim.org/release-docs/latest/api/Reverse/
 // ---------------------------------------------------------------------------
 const GEOCODE_URL = 'https://geocoding-api.open-meteo.com/v1/search';
 const FORECAST_URL = 'https://api.open-meteo.com/v1/forecast';
 const AIR_URL = 'https://air-quality-api.open-meteo.com/v1/air-quality';
 const NWS_ALERTS_URL = 'https://api.weather.gov/alerts/active';
+const REVERSE_URL = 'https://nominatim.openstreetmap.org/reverse';
 // NWS covers the US and its territories; its API refuses points elsewhere.
 const NWS_COUNTRIES = new Set(['US', 'PR', 'GU', 'VI', 'AS', 'MP']);
 const UPSTREAM_TIMEOUT_MS = 10_000;
@@ -198,6 +200,48 @@ async function geocode(query, lang) {
     });
   }
   return results.slice(0, 10).map(toPlace);
+}
+
+// Name the coordinates a browser geolocation fix returned, so the report can
+// be headed like a searched place. Nominatim's reverse endpoint is the only
+// keyless reverse geocoder wired here (Open-Meteo's geocoder searches names
+// only). zoom=10 asks for city/town-level detail; a village coordinate may
+// resolve to a larger unit, which the coordinates line on the report discloses.
+// Parts in Nominatim's address run narrowest to broadest; the name is the
+// narrowest present and the hierarchy the rest, broadest first like toPlace().
+const REVERSE_PARTS = ['city', 'town', 'village', 'municipality', 'county',
+  'state_district', 'state', 'region', 'province', 'country'];
+
+function reversePlace(lat, lon, lang, data) {
+  const a = data && data.address ? data.address : {};
+  const parts = REVERSE_PARTS.map((k) => a[k]).filter(Boolean);
+  const name = parts[0] || null;
+  const country = a.country || null;
+  const admin = parts.slice(1).filter((v) => v !== name && v !== country).reverse();
+  return {
+    id: null,
+    name,
+    latitude: lat,
+    longitude: lon,
+    elevation: null,
+    featureCode: null,
+    countryCode: a.country_code ? a.country_code.toUpperCase() : null,
+    country,
+    admin,
+    timezone: null,
+    population: null,
+  };
+}
+
+async function reverseGeocode(lat, lon, lang) {
+  const url = `${REVERSE_URL}?lat=${lat}&lon=${lon}&format=jsonv2&zoom=10&accept-language=${lang}`;
+  const data = await cached(`rev:${lat.toFixed(2)}:${lon.toFixed(2)}:${lang}`, 86_400_000, () =>
+    fetchJson(url, {
+      // Nominatim's policy asks every client to identify itself.
+      'User-Agent': 'World Weather (Homeroom app)',
+    }));
+  if (!data || data.error) throw new Error('nominatim answered ' + ((data && data.error) || 'nothing'));
+  return reversePlace(lat, lon, lang, data);
 }
 
 function distanceKm(lat1, lon1, lat2, lon2) {
@@ -319,6 +363,24 @@ app.get('/api/place', async (req, res) => {
   } catch (err) {
     console.warn('place lookup failed: ' + err.message);
     res.status(/ 404$/.test(err.message) ? 404 : 502).json({ error: 'upstream_failed' });
+  }
+});
+
+// Name the coordinates a browser geolocation fix returned. The report is then
+// drawn with /api/weather for the same coordinates, which needs no lookup.
+app.get('/api/reverse', async (req, res) => {
+  const lat = Number(req.query.lat);
+  const lon = Number(req.query.lon);
+  if (!Number.isFinite(lat) || !Number.isFinite(lon) || Math.abs(lat) > 90 || Math.abs(lon) > 180) {
+    return res.status(400).json({ error: 'invalid_coordinates' });
+  }
+  try {
+    const place = await reverseGeocode(lat, lon, langParam(req.query.lang));
+    if (!place || !place.name) return res.status(404).json({ error: 'not_found' });
+    res.json({ place });
+  } catch (err) {
+    console.warn('reverse geocode failed: ' + err.message);
+    res.status(502).json({ error: 'upstream_failed' });
   }
 });
 

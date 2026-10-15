@@ -4,11 +4,20 @@
     "image": "brand/icon.png"
   },
   "secrets": [],
+  "permissions": [
+    { "capability": "geolocation", "reason": "Show the weather where you are" }
+  ],
   "tests": [
     {
       "name": "Home shows the place search",
       "path": "/",
       "expectSelector": "#search-input"
+    },
+    {
+      "id": "locate.button",
+      "name": "Home shows the My-location button (geolocation entry point)",
+      "path": "/",
+      "expectSelector": "#locate-btn"
     },
     {
       "id": "weather.report",

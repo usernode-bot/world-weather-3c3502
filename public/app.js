@@ -675,11 +675,21 @@
       + '<ol class="flex overflow-x-auto gap-1 px-2 pb-3 pt-2" aria-label="' + esc(t('next24')) + '">'
       + h.time.map(function (time, i) {
         var pp = h.precipitation_probability ? h.precipitation_probability[i] : null;
+        // Small upright bar under the rain-chance percentage: the fill's
+        // height is the chance itself, so the wet hours stand out while
+        // scrolling. Inline style, not a class — Tailwind is precompiled
+        // from whole-literal class names, so a runtime-assembled height
+        // class would never be generated. The percentage above stays the
+        // accessible value; the bar is silent decoration.
+        var bar = '<div class="rain-bar h-8 w-1 rounded-full overflow-hidden flex flex-col justify-end bg-zinc-200 dark:bg-zinc-800" aria-hidden="true">'
+          + (has(pp) ? '<div class="w-full rounded-full bg-sky-600 dark:bg-sky-400" style="height:' + Math.max(0, Math.min(100, pp)) + '%"></div>' : '')
+          + '</div>';
         return '<li class="shrink-0 w-14 flex flex-col items-center gap-1 py-1 text-center">'
           + '<span class="text-xs text-zinc-500 dark:text-zinc-400">' + esc(hhmm(time)) + '</span>'
           + icon(iconFor(h.weather_code[i], h.is_day ? h.is_day[i] : 1), 'w-6 h-6 text-sky-600 dark:text-sky-400')
           + '<span class="text-sm font-medium">' + esc(temp(h.temperature_2m[i])) + '</span>'
           + '<span class="text-xs text-sky-700 dark:text-sky-300" title="' + esc(t('rainChance')) + '">' + (has(pp) ? esc(num(pp) + '%') : '-') + '</span>'
+          + bar
           + '</li>';
       }).join('') + '</ol>'
       + '<h3 class="px-4 pt-3 border-t border-zinc-200 dark:border-zinc-800 text-sm font-medium">' + esc(t('next7')) + '</h3>'

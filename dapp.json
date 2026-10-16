@@ -40,6 +40,14 @@
       ]
     },
     {
+      "id": "forecast.rainBars",
+      "name": "Hourly strip shows rain chance bars (real Open-Meteo)",
+      "path": "/?place=1622846",
+      "expectSelector": "#forecast .rain-bar",
+      "visual": true,
+      "impact": ["public/**"]
+    },
+    {
       "name": "Report shows a wind speed unit switch (km/j vs mph)",
       "path": "/?place=1622846",
       "expectSelector": "#speed-toggle button[data-speed=\"mph\"][aria-pressed=\"false\"]",

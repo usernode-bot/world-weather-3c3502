@@ -97,6 +97,13 @@
       until: 'Berlaku sampai {t}',
       sunrise: 'Matahari terbit',
       sunset: 'Matahari terbenam',
+      daylight: 'Siang hari',
+      daylightLeft: 'Sisa siang {h} jam {m} menit',
+      daylightLeftMin: 'Sisa siang {m} menit',
+      daylightBefore: 'Matahari terbit pukul {t}',
+      daylightAfter: 'Matahari sudah terbenam (terbenam {t})',
+      daylightRange: '{a} sampai {b}',
+      daylightBar: 'Siang hari dari {a} sampai {b}',
       aqi: 'Kualitas udara (AQI AS)',
       advice: 'Saran',
       gridNote: 'Data cuaca berasal dari titik model terdekat, sekitar {d} km dari lokasi ini.',
@@ -226,6 +233,13 @@
       until: 'In effect until {t}',
       sunrise: 'Sunrise',
       sunset: 'Sunset',
+      daylight: 'Daylight',
+      daylightLeft: '{h} h {m} min of daylight left',
+      daylightLeftMin: '{m} min of daylight left',
+      daylightBefore: 'Sunrise at {t}',
+      daylightAfter: 'The sun has set (sunset {t})',
+      daylightRange: '{a} to {b}',
+      daylightBar: 'Daylight from {a} to {b}',
       aqi: 'Air quality (US AQI)',
       advice: 'Advice',
       gridNote: 'Weather data comes from the nearest model point, about {d} km from this place.',
@@ -405,6 +419,39 @@
   // (timezone=auto), so read the parts as written instead of letting the
   // viewer's browser shift them.
   function hhmm(iso) { return iso ? iso.slice(11, 16) : ''; }
+
+  // Thin sunrise-to-sunset bar for the current weather card. Open-Meteo gives
+  // the times in the place's own local time as "YYYY-MM-DDTHH:MM", so read
+  // them as UTC-shaped milliseconds and place now with the same offset; the
+  // viewer's browser zone never applies.
+  function daylightHtml(w) {
+    var d = w.daily || {};
+    var rise = d.sunrise && d.sunrise[0], set = d.sunset && d.sunset[0];
+    var riseMs = rise ? Date.parse(rise + ':00Z') : NaN;
+    var setMs = set ? Date.parse(set + ':00Z') : NaN;
+    var now = Date.now() + (has(w.utcOffsetSeconds) ? w.utcOffsetSeconds : 0) * 1000;
+    if (!rise || !set || !has(w.utcOffsetSeconds) || isNaN(riseMs) || isNaN(setMs) || setMs <= riseMs) {
+      return '<div class="border-t border-zinc-200 dark:border-zinc-800 px-4 py-3" id="daylight">'
+        + '<p class="text-sm text-zinc-600 dark:text-zinc-400">' + esc(t('daylight') + ': ' + t('unavailable')) + '</p></div>';
+    }
+    var pct = Math.max(0, Math.min(100, Math.round((now - riseMs) / (setMs - riseMs) * 1000) / 10));
+    var status = now < riseMs ? t('daylightBefore', { t: hhmm(rise) })
+      : now >= setMs ? t('daylightAfter', { t: hhmm(set) })
+      : (function () {
+        var mins = Math.floor((setMs - now) / 60000);
+        var h = Math.floor(mins / 60), m = mins % 60;
+        return h ? t('daylightLeft', { h: h, m: m }) : t('daylightLeftMin', { m: m });
+      })();
+    return '<div class="border-t border-zinc-200 dark:border-zinc-800 px-4 py-3" id="daylight">'
+      + '<div class="relative h-1.5 rounded-full bg-zinc-200 dark:bg-zinc-800" role="img" aria-label="' + esc(t('daylightBar', { a: hhmm(rise), b: hhmm(set) })) + '">'
+      + '<div class="absolute inset-y-0 left-0 rounded-full bg-sky-600 dark:bg-sky-400" style="width:' + pct + '%"></div>'
+      + '<div class="absolute top-1/2 w-3 h-3 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white bg-sky-600 dark:border-zinc-900 dark:bg-sky-400" style="left:' + pct + '%"></div>'
+      + '</div>'
+      + '<div class="mt-2 flex items-baseline justify-between gap-3 text-sm">'
+      + '<span>' + esc(status) + '</span>'
+      + '<span class="shrink-0 whitespace-nowrap text-xs text-zinc-500 dark:text-zinc-400">' + esc(t('daylightRange', { a: hhmm(rise), b: hhmm(set) })) + '</span>'
+      + '</div></div>';
+  }
   function localDate(iso) {
     var p = iso.slice(0, 10).split('-').map(Number);
     return new Date(p[0], p[1] - 1, p[2]);
@@ -657,6 +704,7 @@
       + '<div><p class="text-5xl font-bold leading-none" id="current-temp">' + esc(temp(c.temperature_2m)) + '</p>'
       + '<p class="mt-1 font-medium">' + esc(condition(c.weather_code)) + '</p>'
       + '<p class="text-sm text-zinc-600 dark:text-zinc-400">' + esc(t('feelsLike', { t: temp(c.apparent_temperature) })) + '</p></div></div>'
+      + daylightHtml(w)
       + '<dl class="border-t border-zinc-200 dark:border-zinc-800 divide-y divide-zinc-200 dark:divide-zinc-800">'
       + row(t('humidity'), has(c.relative_humidity_2m) ? num(c.relative_humidity_2m) + '%' : t('unavailable'))
       + row(t('wind'), windText, has(c.wind_gusts_10m) ? t('gusts', { g: speed(c.wind_gusts_10m) }) : '')

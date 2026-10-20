@@ -40,6 +40,11 @@
       ]
     },
     {
+      "name": "Report draws the daylight bar under the current weather (Ubud)",
+      "path": "/?place=1622846",
+      "expectSelector": "#current #daylight div[role=\"img\"]"
+    },
+    {
       "name": "Report shows a wind speed unit switch (km/j vs mph)",
       "path": "/?place=1622846",
       "expectSelector": "#speed-toggle button[data-speed=\"mph\"][aria-pressed=\"false\"]",

@@ -329,7 +329,7 @@ const CURRENT_VARS = [
   'precipitation', 'weather_code', 'pressure_msl', 'wind_speed_10m',
   'wind_direction_10m', 'wind_gusts_10m', 'visibility', 'uv_index',
 ].join(',');
-const HOURLY_VARS = 'temperature_2m,precipitation_probability,precipitation,weather_code,is_day';
+const HOURLY_VARS = 'temperature_2m,precipitation_probability,precipitation,weather_code,is_day,wind_direction_10m';
 const DAILY_VARS = [
   'weather_code', 'temperature_2m_max', 'temperature_2m_min',
   'precipitation_probability_max', 'precipitation_sum', 'sunrise', 'sunset', 'uv_index_max',

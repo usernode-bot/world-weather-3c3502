@@ -40,6 +40,16 @@
       ]
     },
     {
+      "id": "forecast.wind",
+      "name": "Forecast hours show a wind direction arrow (live hourly wind)",
+      "path": "/?place=1622846",
+      "expectSelector": "#forecast ol li span[role=\"img\"][aria-label]",
+      "impact": [
+        "public/**",
+        "server.js"
+      ]
+    },
+    {
       "name": "Report shows a wind speed unit switch (km/j vs mph)",
       "path": "/?place=1622846",
       "expectSelector": "#speed-toggle button[data-speed=\"mph\"][aria-pressed=\"false\"]",

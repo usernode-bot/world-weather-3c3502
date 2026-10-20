@@ -11,6 +11,24 @@
       "expectSelector": "#search-input"
     },
     {
+      "id": "header.theme",
+      "name": "Header shows the theme switch, Auto by default",
+      "path": "/",
+      "expectSelector": "#theme-toggle button[data-theme=\"auto\"][aria-pressed=\"true\"]",
+      "visual": true,
+      "impact": ["public/**"]
+    },
+    {
+      "name": "Shell reserves the alerts banner container",
+      "path": "/",
+      "expectSelector": "#alert-banner"
+    },
+    {
+      "name": "Report keeps the alerts banner hidden for a place without a feed (Ubud)",
+      "path": "/?place=1622846",
+      "expectSelector": "#alert-banner.hidden"
+    },
+    {
       "id": "weather.report",
       "name": "Weather report loads live data for a saved place (Ubud)",
       "path": "/?place=1622846",
@@ -20,6 +38,12 @@
         "public/**",
         "server.js"
       ]
+    },
+    {
+      "name": "Report shows a wind speed unit switch (km/j vs mph)",
+      "path": "/?place=1622846",
+      "expectSelector": "#speed-toggle button[data-speed=\"mph\"][aria-pressed=\"false\"]",
+      "expectText": "mph"
     },
     {
       "id": "favorites.toggle",
@@ -39,7 +63,24 @@
       "expectSelector": "#browse-list ul[data-level=\"1\"] button[data-row]",
       "expectText": "Central Java",
       "visual": true,
-      "impact": ["public/**", "server.js", "data/regions/**"]
+      "impact": [
+        "public/**",
+        "server.js",
+        "data/regions/**"
+      ]
+    },
+    {
+      "id": "browse.districts",
+      "name": "Region browser deep link opens a province's kabupaten/kota (real /api/regions)",
+      "path": "/?browse=ID.30",
+      "expectSelector": "#browse-list ul[data-level=\"2\"] button[data-row]",
+      "expectText": "Kabupaten Bandung",
+      "visual": true,
+      "impact": [
+        "public/**",
+        "server.js",
+        "data/regions/**"
+      ]
     },
     {
       "name": "Region browser lists all countries",

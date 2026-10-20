@@ -18,7 +18,9 @@
       emptyBody: 'Ketik nama negara, kota, kecamatan, atau desa. Tambahkan wilayah setelah koma agar lebih tepat, misalnya "Ubud, Bali".',
       searching: 'Mencari lokasi…',
       loading: 'Memuat cuaca…',
-      noResults: 'Lokasi "{q}" tidak ditemukan. Periksa ejaan atau coba nama tempat yang lebih besar di dekatnya.',
+      noResults: 'Lokasi "{q}" tidak ditemukan. Ketik nama tempat, lalu wilayahnya setelah koma. Coba: Sinjai, Sulawesi Selatan',
+      fallbackNote: 'Menampilkan cuaca terdekat: {name}',
+      fallbackPick: 'Atau pilih tempat lain yang mungkin Anda maksud:',
       tooShort: 'Ketik setidaknya 2 huruf.',
       searchError: 'Pencarian lokasi gagal. Periksa koneksi lalu coba lagi.',
       weatherError: 'Data cuaca tidak dapat diambil saat ini. Coba lagi sebentar lagi.',
@@ -40,6 +42,10 @@
       favTooMany: 'Favorit sudah penuh ({max} tempat). Hapus satu dulu.',
       browse: 'Jelajahi',
       browseTitle: 'Jelajahi wilayah',
+      theme: 'Tema',
+      themeAuto: 'Ikuti tema Homeroom',
+      themeLight: 'Terang',
+      themeDark: 'Gelap',
       allCountries: 'Semua negara',
       filterCountries: 'Saring negara',
       filterRegions: 'Saring provinsi atau negara bagian',
@@ -51,6 +57,8 @@
       noMatch: 'Tidak ada yang cocok dengan "{q}".',
       districtCount: '{n} kabupaten/kota',
       regionsSource: 'Daftar wilayah: {src}',
+      browseHint: 'atau pilih negara → provinsi → kabupaten/kota',
+      changeArea: 'Ganti wilayah',
       close: 'Tutup',
       pickTitle: 'Ada beberapa tempat yang cocok dengan "{q}". Pilih yang Anda maksud:',
       current: 'Cuaca saat ini',
@@ -60,8 +68,12 @@
       feelsLike: 'Terasa seperti {t}',
       humidity: 'Kelembapan',
       wind: 'Angin',
-      windFrom: '{s} km/j dari {d}',
-      gusts: 'hembusan hingga {g} km/j',
+      windFrom: '{s} dari {d}',
+      gusts: 'hembusan hingga {g}',
+      unitTempLabel: 'Satuan suhu',
+      unitSpeedLabel: 'Satuan kecepatan angin',
+      unitKmh: 'km/j',
+      unitMph: 'mph',
       pressure: 'Tekanan udara',
       visibility: 'Jarak pandang',
       uv: 'Indeks UV',
@@ -77,6 +89,9 @@
       noAlertsNws: 'Tidak ada peringatan aktif dari {src} untuk lokasi ini saat ini.',
       noAlertFeed: 'Peringatan resmi untuk lokasi ini tidak tersedia di aplikasi ini.',
       checkAgency: 'Periksa peringatan terbaru di {agency}.',
+      bannerTitle: 'Peringatan dini sedang berlaku',
+      bannerSeeAll: 'Lihat semua peringatan',
+      bannerMore: '+{n} peringatan lainnya',
       issuer: 'Penerbit',
       severity: 'Tingkat',
       until: 'Berlaku sampai {t}',
@@ -108,6 +123,9 @@
         airSensitive: 'Kualitas udara kurang baik untuk kelompok sensitif. Batasi aktivitas berat di luar ruangan.',
         fog: 'Jarak pandang rendah. Berkendara lebih pelan dan nyalakan lampu.',
         fine: 'Cuaca cukup bersahabat untuk aktivitas di luar ruangan.',
+        runGood: 'Cuaca bagus untuk lari saat ini.',
+        runHot: 'Terlalu panas untuk lari di luar. Lari pagi-pagi atau sore hari.',
+        runWet: 'Terlalu basah untuk lari di luar. Pilih lari di dalam ruangan atau tunggu hujan reda.',
       },
       wmo: {
         0: 'Cerah', 1: 'Cerah berawan', 2: 'Berawan sebagian', 3: 'Berawan tebal',
@@ -129,7 +147,9 @@
       emptyBody: 'Type a country, city, district or village. Add a region after a comma to narrow it down, for example "Ubud, Bali".',
       searching: 'Searching…',
       loading: 'Loading weather…',
-      noResults: 'No place called "{q}" was found. Check the spelling or try a larger place nearby.',
+      noResults: 'No place called "{q}" was found. Type the place name, then its region after a comma. Try: Sinjai, South Sulawesi',
+      fallbackNote: 'Showing the nearest weather: {name}',
+      fallbackPick: 'Or choose another place you might mean:',
       tooShort: 'Type at least 2 letters.',
       searchError: 'The place search failed. Check your connection and try again.',
       weatherError: 'Weather data could not be loaded right now. Try again in a moment.',
@@ -151,6 +171,10 @@
       favTooMany: 'Your favorites are full ({max} places). Remove one first.',
       browse: 'Browse',
       browseTitle: 'Browse places',
+      theme: 'Theme',
+      themeAuto: 'Follow Homeroom theme',
+      themeLight: 'Light',
+      themeDark: 'Dark',
       allCountries: 'All countries',
       filterCountries: 'Filter countries',
       filterRegions: 'Filter provinces or states',
@@ -162,6 +186,8 @@
       noMatch: 'Nothing matches "{q}".',
       districtCount: '{n} districts',
       regionsSource: 'Place lists: {src}',
+      browseHint: 'or pick country → province → district',
+      changeArea: 'Change area',
       close: 'Close',
       pickTitle: 'Several places match "{q}". Choose the one you mean:',
       current: 'Current weather',
@@ -171,8 +197,12 @@
       feelsLike: 'Feels like {t}',
       humidity: 'Humidity',
       wind: 'Wind',
-      windFrom: '{s} km/h from the {d}',
-      gusts: 'gusts up to {g} km/h',
+      windFrom: '{s} from the {d}',
+      gusts: 'gusts up to {g}',
+      unitTempLabel: 'Temperature unit',
+      unitSpeedLabel: 'Wind speed unit',
+      unitKmh: 'km/h',
+      unitMph: 'mph',
       pressure: 'Pressure',
       visibility: 'Visibility',
       uv: 'UV index',
@@ -188,6 +218,9 @@
       noAlertsNws: 'No active warnings from {src} for this place right now.',
       noAlertFeed: 'Official warnings for this place are not available in this app.',
       checkAgency: 'Check {agency} for the latest warnings.',
+      bannerTitle: 'Weather warnings in effect',
+      bannerSeeAll: 'See all warnings',
+      bannerMore: '+{n} more warnings',
       issuer: 'Issued by',
       severity: 'Severity',
       until: 'In effect until {t}',
@@ -219,6 +252,9 @@
         airSensitive: 'Air quality is poor for sensitive groups. Limit hard outdoor exercise.',
         fog: 'Visibility is low. Drive slowly and use your lights.',
         fine: 'Good conditions for being outdoors.',
+        runGood: 'Good running weather right now.',
+        runHot: 'Too hot to run outside. Run early in the morning or in the evening.',
+        runWet: 'Too wet to run outside. Run indoors or wait for the rain to pass.',
       },
       wmo: {
         0: 'Clear sky', 1: 'Mainly clear', 2: 'Partly cloudy', 3: 'Overcast',
@@ -280,6 +316,9 @@
   var state = {
     lang: storedLang() || guessLang(navigator.language),
     unit: localStorage.getItem('ww.unit') === 'f' ? 'f' : 'c',
+    // 'auto' (follow the Homeroom theme) until a light/dark choice is made.
+    theme: storedTheme() || 'auto',
+    speed: localStorage.getItem('ww.speed') === 'mph' ? 'mph' : 'kmh',
     place: null,
     weather: null,
     // Re-run on "Try again" and on a language change.
@@ -297,6 +336,12 @@
     // 'error' if it failed) and the filter text.
     browseOpen: false,
     browsePath: [],
+    // The browse levels the open report was picked from (null when it was
+    // opened any other way), so "Change area" can go back to its siblings.
+    reportBrowsePath: null,
+    // Set when the open report came from a fallback search: { fallback,
+    // suggestions }, so the report shows the note and the other options.
+    searchFallback: null,
     lists: {},
     filter: '',
   };
@@ -304,6 +349,12 @@
   function storedLang() {
     var v = localStorage.getItem('ww.lang');
     return v === 'id' || v === 'en' ? v : null;
+  }
+
+  // An explicit in-app theme choice; null means "auto" (follow Homeroom).
+  function storedTheme() {
+    var v = localStorage.getItem('ww.theme');
+    return v === 'light' || v === 'dark' ? v : null;
   }
 
   // Indonesian and Malay readers get Indonesian; other known languages get
@@ -340,6 +391,14 @@
   function temp(c) {
     if (!has(c)) return t('unavailable');
     return state.unit === 'f' ? num(c * 9 / 5 + 32) + '°F' : num(c) + '°C';
+  }
+
+  // Wind speed arrives in km/h (the server asks Open-Meteo for kmh); show it
+  // in the viewer's chosen unit, converting only for display.
+  function speed(kmh) {
+    if (!has(kmh)) return t('unavailable');
+    var unit = t(state.speed === 'mph' ? 'unitMph' : 'unitKmh');
+    return (state.speed === 'mph' ? num(kmh / 1.609344) : num(kmh)) + ' ' + unit;
   }
 
   // Open-Meteo answers in the place's own local time as "YYYY-MM-DDTHH:MM"
@@ -450,9 +509,12 @@
     document.querySelectorAll('[data-i18n]').forEach(function (el) { el.textContent = t(el.dataset.i18n); });
     document.querySelectorAll('[data-i18n-placeholder]').forEach(function (el) { el.placeholder = t(el.dataset.i18nPlaceholder); });
     $('lang-toggle').setAttribute('aria-label', state.lang === 'id' ? 'Bahasa' : 'Language');
-    $('unit-toggle').setAttribute('aria-label', state.lang === 'id' ? 'Satuan suhu' : 'Temperature unit');
+    $('unit-toggle').setAttribute('aria-label', t('unitTempLabel'));
+    $('speed-toggle').setAttribute('aria-label', t('unitSpeedLabel'));
     segment('lang-toggle', 'lang', state.lang);
     segment('unit-toggle', 'unit', state.unit);
+    paintTheme();
+    segment('speed-toggle', 'speed', state.speed);
     renderFavoritesButton();
     renderBrowseButton();
   }
@@ -468,6 +530,24 @@
     });
   }
 
+  // The theme switch paints like segment(), except its two icon buttons are
+  // drawn in the accent colour when off, the way the report's icons are.
+  function paintTheme() {
+    var group = $('theme-toggle');
+    if (!group) return;
+    group.setAttribute('aria-label', t('theme'));
+    group.querySelectorAll('button').forEach(function (b) {
+      var on = b.dataset.theme === state.theme;
+      var label = t('theme' + b.dataset.theme.charAt(0).toUpperCase() + b.dataset.theme.slice(1));
+      var off = b.dataset.theme === 'auto' ? SEG_OFF : ['text-sky-600', 'dark:text-sky-400'];
+      b.setAttribute('aria-pressed', on ? 'true' : 'false');
+      b.setAttribute('aria-label', label);
+      b.setAttribute('title', label);
+      SEG_ON.forEach(function (c) { b.classList.toggle(c, on); });
+      off.forEach(function (c) { b.classList.toggle(c, !on); });
+    });
+  }
+
   function setStatus(kind, text) {
     var el = $('status');
     if (kind === 'none') { el.innerHTML = ''; return; }
@@ -475,7 +555,11 @@
       el.innerHTML = '<div class="py-10 text-center flex flex-col items-center gap-2">'
         + icon('cloudSun', 'w-10 h-10 text-sky-600 dark:text-sky-400')
         + '<h2 class="text-lg font-semibold">' + esc(t('emptyTitle')) + '</h2>'
-        + '<p class="text-sm text-zinc-600 dark:text-zinc-400 max-w-sm">' + esc(t('emptyBody')) + '</p></div>';
+        + '<p class="text-sm text-zinc-600 dark:text-zinc-400 max-w-sm">' + esc(t('emptyBody')) + '</p>'
+        + '<button type="button" id="empty-browse" aria-controls="browse" class="mt-3 inline-flex items-center gap-1.5 rounded-lg border border-zinc-200 dark:border-zinc-800 px-2.5 py-1.5 text-sm font-medium text-zinc-700 dark:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500">'
+        + icon('map', 'w-4 h-4 text-sky-600 dark:text-sky-400') + '<span>' + esc(t('browseTitle')) + '</span></button>'
+        + '<p class="text-xs text-zinc-500 dark:text-zinc-400">' + esc(t('browseHint')) + '</p></div>';
+      $('empty-browse').addEventListener('click', function () { setBrowseOpen(true); });
       return;
     }
     if (kind === 'loading') {
@@ -496,10 +580,10 @@
     if (retry) retry.addEventListener('click', function () { state.lastAction(); });
   }
 
-  function renderResults(q, results) {
-    var el = $('results');
-    el.innerHTML = '<h2 class="text-sm text-zinc-600 dark:text-zinc-400 mb-2 px-1">' + esc(t('pickTitle', { n: results.length, q: q })) + '</h2>'
-      + '<ul class="rounded-xl border border-zinc-200 bg-white divide-y divide-zinc-200 overflow-hidden dark:border-zinc-800 dark:bg-zinc-900 dark:divide-zinc-800">'
+  // The list of matching places used both by the search results and by the
+  // suggestions under a fallback report. Callers wire the button clicks.
+  function placeListHtml(results) {
+    return '<ul class="rounded-xl border border-zinc-200 bg-white divide-y divide-zinc-200 overflow-hidden dark:border-zinc-800 dark:bg-zinc-900 dark:divide-zinc-800">'
       + results.map(function (p, i) {
         return '<li><button type="button" data-i="' + i + '" class="un-pressable w-full text-left px-4 py-3 flex items-center justify-between gap-3 hover:bg-zinc-50 dark:hover:bg-zinc-800/60 focus:outline-none focus-visible:bg-zinc-100 dark:focus-visible:bg-zinc-800">'
           + '<span class="min-w-0"><span class="block font-semibold truncate">' + esc(p.name) + '</span>'
@@ -507,6 +591,12 @@
           + '<span class="shrink-0 text-xs text-zinc-500 dark:text-zinc-400">' + esc(placeKind(p.featureCode)) + '</span>'
           + '</button></li>';
       }).join('') + '</ul>';
+  }
+
+  function renderResults(q, results) {
+    var el = $('results');
+    el.innerHTML = '<h2 class="text-sm text-zinc-600 dark:text-zinc-400 mb-2 px-1">' + esc(t('pickTitle', { n: results.length, q: q })) + '</h2>'
+      + placeListHtml(results);
     el.querySelectorAll('button[data-i]').forEach(function (b) {
       b.addEventListener('click', function () { choosePlace(results[Number(b.dataset.i)]); });
     });
@@ -533,6 +623,7 @@
 
     // Location
     var notes = [];
+    if (state.searchFallback) notes.push(t('fallbackNote', { name: p.name }));
     if (isArea(p.featureCode)) notes.push(t('areaNote'));
     if (w.grid && w.grid.distanceKm >= 1) notes.push(t('gridNote', { d: num(w.grid.distanceKm, w.grid.distanceKm < 10 ? 1 : 0) }));
     html += '<section id="location">'
@@ -540,17 +631,24 @@
       + '<div class="flex items-baseline gap-2 flex-wrap"><h2 class="text-xl font-bold" id="place-name">' + esc(p.name) + '</h2>'
       + '<span class="text-xs text-zinc-500 dark:text-zinc-400">' + esc(placeKind(p.featureCode)) + '</span></div>'
       + (hierarchy(p) ? '<p class="text-sm text-zinc-600 dark:text-zinc-400">' + esc(hierarchy(p)) + '</p>' : '')
+      + (state.reportBrowsePath && state.reportBrowsePath.length
+        ? '<button type="button" id="change-area" aria-controls="browse" class="text-sm text-sky-700 dark:text-sky-300 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 rounded">' + esc(t('changeArea')) + '</button>'
+        : '')
       + '<p class="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">' + esc(t('coords', {
         lat: num(p.latitude, 4), lon: num(p.longitude, 4), e: has(p.elevation) ? num(p.elevation) : '-',
       })) + '</p></div>'
       + '<button type="button" id="fav-toggle" class="shrink-0 inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-sm font-medium focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500"></button>'
       + '</div>'
       + notes.map(function (n) { return '<p class="mt-2 text-sm text-amber-800 dark:text-amber-200">' + esc(n) + '</p>'; }).join('')
+      + (state.searchFallback && state.searchFallback.suggestions && state.searchFallback.suggestions.length
+        ? '<p class="text-sm text-zinc-600 dark:text-zinc-400 mt-3 mb-2 px-1">' + esc(t('fallbackPick')) + '</p>'
+          + placeListHtml(state.searchFallback.suggestions)
+        : '')
       + '</section>';
 
     // Current
     var windText = has(c.wind_speed_10m)
-      ? t('windFrom', { s: num(c.wind_speed_10m), d: compass(c.wind_direction_10m) }) + ' (' + num(c.wind_direction_10m) + '°)'
+      ? t('windFrom', { s: speed(c.wind_speed_10m), d: compass(c.wind_direction_10m) }) + ' (' + num(c.wind_direction_10m) + '°)'
       : t('unavailable');
     html += '<section id="current" data-state="loaded">' + sectionHeader(t('current'))
       + '<div class="' + CARD + '">'
@@ -561,7 +659,7 @@
       + '<p class="text-sm text-zinc-600 dark:text-zinc-400">' + esc(t('feelsLike', { t: temp(c.apparent_temperature) })) + '</p></div></div>'
       + '<dl class="border-t border-zinc-200 dark:border-zinc-800 divide-y divide-zinc-200 dark:divide-zinc-800">'
       + row(t('humidity'), has(c.relative_humidity_2m) ? num(c.relative_humidity_2m) + '%' : t('unavailable'))
-      + row(t('wind'), windText, has(c.wind_gusts_10m) ? t('gusts', { g: num(c.wind_gusts_10m) }) : '')
+      + row(t('wind'), windText, has(c.wind_gusts_10m) ? t('gusts', { g: speed(c.wind_gusts_10m) }) : '')
       + row(t('pressure'), has(c.pressure_msl) ? num(c.pressure_msl) + ' hPa' : t('unavailable'))
       + row(t('visibility'), has(c.visibility) ? (c.visibility >= 1000 ? num(c.visibility / 1000, c.visibility < 10000 ? 1 : 0) + ' km' : num(c.visibility) + ' m') : t('unavailable'))
       + row(t('uv'), has(c.uv_index) ? num(c.uv_index, 1) + ' · ' + uvCategory(c.uv_index) : t('unavailable'))
@@ -659,8 +757,20 @@
 
     $('report').innerHTML = html;
     $('fav-toggle').addEventListener('click', function () { toggleFavorite(p); });
+    if (state.searchFallback && state.searchFallback.suggestions) {
+      var suggestions = state.searchFallback.suggestions;
+      $('report').querySelectorAll('#location button[data-i]').forEach(function (b) {
+        b.addEventListener('click', function () { choosePlace(suggestions[Number(b.dataset.i)]); });
+      });
+    }
+    if ($('change-area')) $('change-area').addEventListener('click', function () {
+      state.browseOpen = true;
+      if (state.favOpen) { state.favOpen = false; renderFavorites(); }
+      browseTo(state.reportBrowsePath.slice());
+    });
     renderFavToggle();
     show('report', true);
+    renderBanner();
   }
 
   // ---------------------------------------------------------------- favorites
@@ -823,9 +933,15 @@
   // children is null for countries (not counted) and 0 for a leaf.
   function browseItems(data) {
     if (data.countries) {
-      return data.countries.map(function (c) {
+      var list = data.countries.map(function (c) {
         return { id: c.id, code: c.code, name: countryName(c), children: null };
       }).sort(function (a, b) { return a.name.localeCompare(b.name, STRINGS[state.lang].locale); });
+      // In Indonesian, Indonesia leads the list (once, not again under I).
+      if (state.lang === 'id') {
+        var at = list.findIndex(function (c) { return c.code === 'ID'; });
+        if (at >= 0) list.unshift(Object.assign(list.splice(at, 1)[0], { pinned: true }));
+      }
+      return list;
     }
     return data.regions;
   }
@@ -910,7 +1026,7 @@
     el.innerHTML = '<ul class="divide-y divide-zinc-200 dark:divide-zinc-800" data-level="' + state.browsePath.length + '">'
       + shown.map(function (it, i) {
         var drill = it.children !== 0;
-        return '<li><button type="button" data-row="' + i + '" class="un-pressable w-full text-left px-4 py-3 flex items-center justify-between gap-3 hover:bg-zinc-50 dark:hover:bg-zinc-800/60 focus:outline-none focus-visible:bg-zinc-100 dark:focus-visible:bg-zinc-800">'
+        return '<li' + (it.pinned && shown.length > 1 ? ' class="border-b-4 border-zinc-200 dark:border-zinc-800" data-pinned="true"' : '') + '><button type="button" data-row="' + i + '" class="un-pressable w-full text-left px-4 py-3 flex items-center justify-between gap-3 hover:bg-zinc-50 dark:hover:bg-zinc-800/60 focus:outline-none focus-visible:bg-zinc-100 dark:focus-visible:bg-zinc-800">'
           + '<span class="min-w-0"><span class="block font-medium truncate">' + esc(it.name) + '</span>'
           + (it.children || it.alt ? '<span class="block text-xs text-zinc-500 dark:text-zinc-400">'
             + esc([it.alt, it.children ? t('districtCount', { n: num(it.children) }) : ''].filter(Boolean).join(' · ')) + '</span>' : '')
@@ -943,8 +1059,9 @@
     state.filter = '';
     renderBrowse();
     var url = browseUrl();
-    if (state.lists[url] === undefined || state.lists[url] === 'error') loadList(url);
+    var loading = state.lists[url] === undefined || state.lists[url] === 'error' ? loadList(url) : null;
     $('browse').scrollIntoView({ block: 'nearest' });
+    return loading;
   }
 
   function setBrowseOpen(open) {
@@ -962,8 +1079,11 @@
   }
 
   function openFromBrowse(id) {
+    // A leaf row does not push itself, so this is the list it was picked
+    // from; a "Lihat cuaca" button opens the level that is showing.
+    var from = state.browsePath.slice();
     setBrowseOpen(false);
-    openPlaceId(id);
+    openPlaceId(id, from);
   }
 
   // When this app fetched the data, in the place's own time zone so it reads
@@ -997,7 +1117,95 @@
       else if (w.air.usAqi > 100) out.push(tips.airSensitive);
     }
     if (!out.length) out.push(tips.fine);
+    // At most one running line, checked in order: hot, wet, good. Only the
+    // fetched values decide; a missing value just means no good line.
+    var probs = (h.precipitation_probability || []).slice(0, 12).filter(has);
+    var feels = c.apparent_temperature, gust = c.wind_gusts_10m;
+    var storm = codes.some(function (x) { return x >= 95; });
+    var wetNow = has(c.weather_code) && c.weather_code >= 51;
+    var airOk = !(w.air && has(w.air.usAqi) && w.air.usAqi > 100);
+    if (has(feels) && feels > 30) out.push(tips.runHot);
+    else if (maxRain >= 60 || storm || wetNow) out.push(tips.runWet);
+    else if (probs.length >= 12 && Math.max.apply(null, probs) < 30 && has(c.weather_code)
+      && has(feels) && feels >= 5 && has(gust) && gust < 30 && airOk) out.push(tips.runGood);
     return out;
+  }
+
+  // ---------------------------------------------------------------- banner
+  // The red banner at the top of the page names the active severe warnings
+  // for the place on screen. It is a client-side view of the same alerts
+  // payload the warnings section renders, never a replacement for it:
+  // severity Extreme or Severe only, most severe and soonest to expire
+  // first, at most three lines. Dismissing is remembered per place in
+  // localStorage (ww.alertsDismissed) keyed by the exact set of severe
+  // warnings, so a new or changed warning reopens the banner while a reload
+  // of the same warnings stays quiet.
+  var SEVERE_RANK = { Extreme: 0, Severe: 1 };
+
+  function severeAlerts(w) {
+    var items = w && w.alerts && Array.isArray(w.alerts.items) ? w.alerts.items : [];
+    var now = Date.now();
+    return items.filter(function (a) {
+      return !!a.event && SEVERE_RANK.hasOwnProperty(a.severity)
+        && !(a.ends && new Date(a.ends).getTime() < now);
+    }).sort(function (a, b) {
+      return (SEVERE_RANK[a.severity] - SEVERE_RANK[b.severity])
+        || String(a.ends || '').localeCompare(String(b.ends || ''));
+    });
+  }
+
+  function severeKey(items) {
+    return items.map(function (a) { return (a.event || '') + '|' + (a.ends || ''); })
+      .sort().join(';');
+  }
+
+  function readDismissed() {
+    try {
+      var seen = JSON.parse(localStorage.getItem('ww.alertsDismissed') || '{}');
+      return seen && typeof seen === 'object' ? seen : {};
+    } catch (_) {
+      return {};
+    }
+  }
+
+  function renderBanner() {
+    var el = $('alert-banner');
+    if (!el) return;
+    var p = state.place, items = severeAlerts(state.weather);
+    if (!p || !items.length) { el.innerHTML = ''; show('alert-banner', false); return; }
+    var key = severeKey(items);
+    if (readDismissed()[p.id] === key) { show('alert-banner', false); return; }
+    var sev = STRINGS[state.lang].sev;
+    var shown = items.slice(0, 3);
+    var lines = shown.map(function (a) {
+      return '<li><span class="font-semibold">' + esc(a.event) + '</span>'
+        + ' · ' + esc(sev[a.severity] || a.severity)
+        + (a.ends ? ' · ' + esc(t('until', { t: new Date(a.ends).toLocaleString(STRINGS[state.lang].locale, { dateStyle: 'medium', timeStyle: 'short' }) })) : '')
+        + '</li>';
+    }).join('');
+    if (items.length > shown.length) {
+      lines += '<li>' + esc(t('bannerMore', { n: num(items.length - shown.length) })) + '</li>';
+    }
+    el.innerHTML = '<div class="rounded-xl border border-red-200 bg-red-50 dark:border-red-900/60 dark:bg-red-950/40 px-4 py-3">'
+      + '<div class="flex items-start gap-3">'
+      + icon('alert', 'w-5 h-5 shrink-0 mt-0.5 text-red-600 dark:text-red-400')
+      + '<div class="min-w-0 flex-1"><p class="font-semibold text-red-800 dark:text-red-200">' + esc(t('bannerTitle')) + '</p>'
+      + '<ul class="text-sm text-red-800 dark:text-red-200">' + lines + '</ul>'
+      + '<p class="text-sm mt-1"><button type="button" id="banner-see-all" class="font-medium text-sky-700 underline dark:text-sky-300 rounded focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500">' + esc(t('bannerSeeAll')) + '</button></p></div>'
+      + '<button type="button" id="banner-close" class="un-touch-target shrink-0 rounded-md p-1 text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500" aria-label="' + esc(t('close')) + '">'
+      + icon('x', 'w-4 h-4') + '</button>'
+      + '</div></div>';
+    show('alert-banner', true);
+    $('banner-see-all').addEventListener('click', function () {
+      var target = document.getElementById('alerts');
+      if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+    $('banner-close').addEventListener('click', function () {
+      var seen = readDismissed();
+      seen[p.id] = key;
+      try { localStorage.setItem('ww.alertsDismissed', JSON.stringify(seen)); } catch (_) {}
+      show('alert-banner', false);
+    });
   }
 
   // ---------------------------------------------------------------- actions
@@ -1005,6 +1213,7 @@
     q = q.trim();
     var seq = ++state.seq;
     state.lastAction = function () { search(q); };
+    state.searchFallback = null;
     show('results', false);
     if (q.length < 2) { setStatus('info', t('tooShort')); return; }
     setStatus('loading', t('searching'));
@@ -1013,6 +1222,10 @@
       if (seq !== state.seq) return;
       var results = data.results || [];
       if (!results.length) { setStatus('info', t('noResults', { q: q })); return; }
+      if (data.fallback) {
+        choosePlace(results[0], null, { fallback: true, suggestions: results.slice(1, 5) });
+        return;
+      }
       if (results.length === 1) { choosePlace(results[0]); return; }
       setStatus('none');
       show('report', false);
@@ -1023,11 +1236,14 @@
     }
   }
 
-  async function choosePlace(place) {
+  async function choosePlace(place, fromBrowse, opts) {
     var seq = ++state.seq;
     state.place = place;
     state.weather = null;
-    state.lastAction = function () { choosePlace(place); };
+    renderBanner();
+    state.reportBrowsePath = fromBrowse || null;
+    state.searchFallback = opts || null;
+    state.lastAction = function () { choosePlace(place, fromBrowse, opts); };
     show('results', false);
     show('report', false);
     setStatus('loading', t('loading'));
@@ -1044,15 +1260,15 @@
     }
   }
 
-  async function openPlaceId(id) {
+  async function openPlaceId(id, fromBrowse) {
     var seq = ++state.seq;
-    state.lastAction = function () { openPlaceId(id); };
+    state.lastAction = function () { openPlaceId(id, fromBrowse); };
     show('results', false);
     setStatus('loading', t('loading'));
     try {
       var data = await api('/api/place?id=' + id + '&lang=' + state.lang);
       if (seq !== state.seq) return;
-      choosePlace(data.place);
+      choosePlace(data.place, fromBrowse);
     } catch (err) {
       if (seq !== state.seq) return;
       setStatus(err.status === 404 ? 'info' : 'error', err.status === 404 ? t('placeError') : t('weatherError'));
@@ -1090,6 +1306,24 @@
     segment('unit-toggle', 'unit', state.unit);
     renderReport();
   });
+  $('theme-toggle').addEventListener('click', function (e) {
+    var b = e.target.closest('button[data-theme]');
+    if (!b) return;
+    state.theme = b.dataset.theme;
+    // 'auto' removes the choice, so the head script follows Homeroom again.
+    if (state.theme === 'auto') localStorage.removeItem('ww.theme');
+    else localStorage.setItem('ww.theme', state.theme);
+    if (window.wwApplyTheme) window.wwApplyTheme();
+    paintTheme();
+  });
+  $('speed-toggle').addEventListener('click', function (e) {
+    var b = e.target.closest('button[data-speed]');
+    if (!b) return;
+    state.speed = b.dataset.speed;
+    localStorage.setItem('ww.speed', state.speed);
+    segment('speed-toggle', 'speed', state.speed);
+    renderReport();
+  });
 
   function setLang(lang, persist) {
     if (lang !== 'id' && lang !== 'en') return;
@@ -1102,7 +1336,7 @@
     if (!changed) return;
     // Place names come back in the chosen language too, so reload whatever
     // is on screen (or still loading) rather than only relabelling it.
-    if (state.place) openPlaceId(state.place.id);
+    if (state.place) openPlaceId(state.place.id, state.reportBrowsePath);
     else if (state.lastAction) state.lastAction();
     else setStatus('empty');
   }
@@ -1119,16 +1353,27 @@
   }
 
   // ?browse opens the region browser; ?browse=<country code> opens it at
-  // that country's provinces.
+  // that country's provinces and ?browse=<country code>.<province code>
+  // (e.g. ID.30) at that province's districts, falling back to the country
+  // when the province is not found.
   if (params.has('browse')) {
-    var startCc = (params.get('browse') || '').toUpperCase();
+    var startM = /^([A-Za-z]{2})(?:\.([A-Za-z0-9]+))?$/.exec(params.get('browse') || '');
     setBrowseOpen(true);
-    if (/^[A-Z]{2}$/.test(startCc)) {
+    if (startM) {
+      var startCc = startM[1].toUpperCase(), startA1 = startM[2];
       api('/api/regions').then(function (data) {
         state.lists['/api/regions'] = data;
         var c = (data.countries || []).filter(function (x) { return x.code === startCc; })[0];
-        if (c && state.browseOpen && !state.browsePath.length) browseTo([{ id: c.id, code: c.code, name: countryName(c) }]);
-        else renderBrowseList();
+        if (!c || !state.browseOpen || state.browsePath.length) { renderBrowseList(); return; }
+        var countryPath = [{ id: c.id, code: c.code, name: countryName(c) }];
+        var loading = browseTo(countryPath), url = browseUrl();
+        if (!startA1) return;
+        Promise.resolve(loading).then(function () {
+          var regions = state.lists[url];
+          var a1 = regions && regions.regions && regions.regions.filter(function (r) { return r.code === startA1; })[0];
+          var stillThere = state.browseOpen && state.browsePath.length === 1 && state.browsePath[0].code === c.code;
+          if (a1 && stillThere) browseTo(countryPath.concat([{ id: a1.id, code: a1.code, name: a1.name }]));
+        });
       }).catch(function () {});
     }
   }

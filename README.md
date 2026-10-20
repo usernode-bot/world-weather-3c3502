@@ -7,7 +7,10 @@ villages, shown in Indonesian or English.
   administrative hierarchy and asks you to pick when a name is ambiguous.
   Add a region after a comma to narrow the search ("Ubud, Bali").
 - **Current weather.** Condition, temperature and feels-like, humidity, wind
-  speed and direction, pressure, visibility, UV and precipitation.
+  speed and direction, pressure, visibility, UV and precipitation. The
+  place's own local time sits under its name and ticks over every minute,
+  with a tomorrow/yesterday hint when it falls on a different day than the
+  viewer's.
 - **Forecast.** The next 24 hours by the hour, plus 7 days. Days beyond the
   third are marked as less certain.
 - **Weather warnings.** Official NWS alerts for US locations. Elsewhere the
@@ -35,8 +38,9 @@ viewer's Homeroom theme, or Light and Dark pin the look; a pinned choice
 is remembered in `localStorage` until Auto is picked again.
 
 - **Favorites.** The Save button on a report stars the place; the Favorites
-  button in the header lists saved places to reopen or remove. They are
-  stored per Homeroom user in the `favorites` table (`/api/favorites`).
+  button in the header lists saved places, each with its current local time,
+  to reopen or remove. They are stored per Homeroom user in the `favorites`
+  table (`/api/favorites`).
 - **Browse.** The Browse button in the header lists every country; opening
   one lists its provinces or states, and opening a province lists its
   districts or regencies. Each level has a filter box, and any place opens

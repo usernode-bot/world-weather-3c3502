@@ -40,6 +40,16 @@
       ]
     },
     {
+      "id": "weather.localtime",
+      "name": "Report shows the place's current local time",
+      "path": "/?place=1622846",
+      "expectSelector": "#location [data-localtime]",
+      "visual": true,
+      "impact": [
+        "public/**"
+      ]
+    },
+    {
       "name": "Report shows a wind speed unit switch (km/j vs mph)",
       "path": "/?place=1622846",
       "expectSelector": "#speed-toggle button[data-speed=\"mph\"][aria-pressed=\"false\"]",

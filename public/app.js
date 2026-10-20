@@ -106,6 +106,9 @@
       srcNws: 'National Weather Service (peringatan)',
       updated: 'Data cuaca untuk {t} ({tz}) · diambil {f}',
       coords: '{lat}, {lon} · ketinggian {e} m',
+      localtime: 'Waktu lokal {t}',
+      localtimeNext: 'Waktu lokal {t} (besok)',
+      localtimePrev: 'Waktu lokal {t} (kemarin)',
       kind: { country: 'Negara', region: 'Wilayah', city: 'Kota', place: 'Tempat' },
       sev: { Extreme: 'Ekstrem', Severe: 'Parah', Moderate: 'Sedang', Minor: 'Ringan', Unknown: 'Tidak diketahui' },
       aqiCat: ['Baik', 'Sedang', 'Tidak sehat bagi kelompok sensitif', 'Tidak sehat', 'Sangat tidak sehat', 'Berbahaya'],
@@ -235,6 +238,9 @@
       srcNws: 'National Weather Service (warnings)',
       updated: 'Weather data for {t} ({tz}) · fetched {f}',
       coords: '{lat}, {lon} · elevation {e} m',
+      localtime: 'Local time {t}',
+      localtimeNext: 'Local time {t} (tomorrow)',
+      localtimePrev: 'Local time {t} (yesterday)',
       kind: { country: 'Country', region: 'Region', city: 'City', place: 'Place' },
       sev: { Extreme: 'Extreme', Severe: 'Severe', Moderate: 'Moderate', Minor: 'Minor', Unknown: 'Unknown' },
       aqiCat: ['Good', 'Moderate', 'Unhealthy for sensitive groups', 'Unhealthy', 'Very unhealthy', 'Hazardous'],
@@ -411,6 +417,73 @@
   }
   function dayName(iso, opts) {
     return localDate(iso).toLocaleDateString(STRINGS[state.lang].locale, opts || { weekday: 'long' });
+  }
+
+  // The place's own clock, read from the time zone the app already has:
+  // Open-Meteo reports it for the open report (with its UTC offset as a
+  // fallback), and a saved place carries the zone GeoNames gave it. No clock
+  // API is called. A place with no known zone gets no line rather than a
+  // guessed one.
+  function zoneParts(tz, offsetSeconds) {
+    var now = new Date();
+    if (tz) {
+      try {
+        var out = {};
+        new Intl.DateTimeFormat('en-GB', {
+          timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit',
+          hour: '2-digit', minute: '2-digit', hourCycle: 'h23',
+        }).formatToParts(now).forEach(function (p) {
+          if (p.type !== 'literal') out[p.type] = p.value;
+        });
+        return { y: Number(out.year), m: Number(out.month), d: Number(out.day), hh: out.hour, mm: out.minute };
+      } catch (_) { /* unknown zone: fall back to the offset below */ }
+    }
+    if (has(offsetSeconds)) {
+      var shifted = new Date(now.getTime() + Number(offsetSeconds) * 1000);
+      var two = function (n) { return (n < 10 ? '0' : '') + n; };
+      return {
+        y: shifted.getUTCFullYear(), m: shifted.getUTCMonth() + 1, d: shifted.getUTCDate(),
+        hh: two(shifted.getUTCHours()), mm: two(shifted.getUTCMinutes()),
+      };
+    }
+    return null;
+  }
+
+  // "14:32", with "(tomorrow)" or "(yesterday)" when the place is already on
+  // a different date than the viewer's. Null when the zone is unknown.
+  function localTimeText(tz, offsetSeconds) {
+    var z = zoneParts(tz, offsetSeconds);
+    if (!z) return null;
+    var v = new Date();
+    var diff = Math.round((Date.UTC(z.y, z.m - 1, z.d)
+      - Date.UTC(v.getFullYear(), v.getMonth(), v.getDate())) / 86400000);
+    return t(diff > 0 ? 'localtimeNext' : diff < 0 ? 'localtimePrev' : 'localtime', {
+      t: z.hh + ':' + z.mm,
+    });
+  }
+
+  // The line's own markup, carrying the zone so the minute ticker can repaint
+  // it in place instead of re-rendering the screen around it.
+  function localTimeHtml(tz, offsetSeconds) {
+    var text = localTimeText(tz, offsetSeconds);
+    if (text == null) return '';
+    return '<span data-localtime data-tz="' + esc(tz || '') + '"'
+      + (has(offsetSeconds) ? ' data-offset="' + esc(String(offsetSeconds)) + '"' : '')
+      + '>' + esc(text) + '</span>';
+  }
+
+  // Every local time on screen, refreshed once a minute so it never drifts,
+  // and again when the page comes back from the background, where timers are
+  // throttled. Only the text changes, so focus and open lists stay put.
+  function paintLocalTimes() {
+    document.querySelectorAll('[data-localtime]').forEach(function (el) {
+      var text = localTimeText(
+        el.dataset.tz || '',
+        el.hasAttribute('data-offset') ? Number(el.dataset.offset) : null,
+      );
+      if (text == null) el.remove();
+      else el.textContent = text;
+    });
   }
 
   function compass(deg) {
@@ -626,6 +699,7 @@
     if (state.searchFallback) notes.push(t('fallbackNote', { name: p.name }));
     if (isArea(p.featureCode)) notes.push(t('areaNote'));
     if (w.grid && w.grid.distanceKm >= 1) notes.push(t('gridNote', { d: num(w.grid.distanceKm, w.grid.distanceKm < 10 ? 1 : 0) }));
+    var localTime = localTimeHtml(w.timezone, w.utcOffsetSeconds);
     html += '<section id="location">'
       + '<div class="flex items-start justify-between gap-3"><div class="min-w-0">'
       + '<div class="flex items-baseline gap-2 flex-wrap"><h2 class="text-xl font-bold" id="place-name">' + esc(p.name) + '</h2>'
@@ -636,7 +710,9 @@
         : '')
       + '<p class="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">' + esc(t('coords', {
         lat: num(p.latitude, 4), lon: num(p.longitude, 4), e: has(p.elevation) ? num(p.elevation) : '-',
-      })) + '</p></div>'
+      })) + '</p>'
+      + (localTime ? '<p class="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">' + localTime + '</p>' : '')
+      + '</div>'
       + '<button type="button" id="fav-toggle" class="shrink-0 inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-sm font-medium focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500"></button>'
       + '</div>'
       + notes.map(function (n) { return '<p class="mt-2 text-sm text-amber-800 dark:text-amber-200">' + esc(n) + '</p>'; }).join('')
@@ -827,11 +903,14 @@
       body = '<ul id="fav-list" class="rounded-xl border border-zinc-200 bg-white divide-y divide-zinc-200 overflow-hidden dark:border-zinc-800 dark:bg-zinc-900 dark:divide-zinc-800">'
         + state.favorites.map(function (f) {
           var current = state.place && state.place.id === f.id;
+          var localTime = localTimeHtml(f.timezone, null);
           return '<li class="flex items-stretch" data-fav-id="' + f.id + '">'
             + '<button type="button" data-open="' + f.id + '" class="un-pressable flex-1 min-w-0 text-left px-4 py-3 flex items-center gap-3 hover:bg-zinc-50 dark:hover:bg-zinc-800/60 focus:outline-none focus-visible:bg-zinc-100 dark:focus-visible:bg-zinc-800"' + (current ? ' aria-current="true"' : '') + '>'
             + starIcon(true, 'w-4 h-4 shrink-0 text-sky-600 dark:text-sky-400')
             + '<span class="min-w-0"><span class="block font-semibold truncate">' + esc(f.name) + '</span>'
-            + '<span class="block text-sm text-zinc-600 dark:text-zinc-400 truncate">' + esc(hierarchy(f) || '') + '</span></span></button>'
+            + '<span class="block text-sm text-zinc-600 dark:text-zinc-400 truncate">' + esc(hierarchy(f) || '') + '</span>'
+            + (localTime ? '<span class="block text-xs text-zinc-500 dark:text-zinc-400 truncate">' + localTime + '</span>' : '')
+            + '</span></button>'
             + '<button type="button" data-remove="' + f.id + '" class="shrink-0 px-4 text-zinc-500 hover:text-red-600 dark:text-zinc-400 dark:hover:text-red-400 focus:outline-none focus-visible:bg-zinc-100 dark:focus-visible:bg-zinc-800"'
             + (state.favBusy[f.id] ? ' disabled' : '') + ' aria-label="' + esc(t('favRemove', { name: f.name })) + '">'
             + icon('trash', 'w-5 h-5') + '</button></li>';
@@ -1340,6 +1419,17 @@
     else if (state.lastAction) state.lastAction();
     else setStatus('empty');
   }
+
+  // Keep every place's local time current without re-rendering the screen:
+  // once a minute, and as soon as the page is visible again (a background
+  // page throttles timers, so the first tick after coming back can be late).
+  setInterval(paintLocalTimes, 60000);
+  document.addEventListener('visibilitychange', function () {
+    if (!document.hidden) paintLocalTimes();
+  });
+  window.addEventListener('usernode:visibility-changed', function (e) {
+    if (!e.detail || !e.detail.hidden) paintLocalTimes();
+  });
 
   renderStatic();
   loadFavorites();

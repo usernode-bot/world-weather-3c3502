@@ -69,6 +69,7 @@
       humidity: 'Kelembapan',
       wind: 'Angin',
       windFrom: '{s} dari {d}',
+      windDir: 'Angin dari {d} ({deg}°)',
       gusts: 'hembusan hingga {g}',
       unitTempLabel: 'Satuan suhu',
       unitSpeedLabel: 'Satuan kecepatan angin',
@@ -198,6 +199,7 @@
       humidity: 'Humidity',
       wind: 'Wind',
       windFrom: '{s} from the {d}',
+      windDir: 'Wind from the {d} ({deg}°)',
       gusts: 'gusts up to {g}',
       unitTempLabel: 'Temperature unit',
       unitSpeedLabel: 'Wind speed unit',
@@ -465,6 +467,7 @@
     chevron: '<path d="m9 18 6-6-6-6"/>',
     map: '<path d="M14.106 5.553a2 2 0 0 0 1.788 0l3.659-1.83A1 1 0 0 1 21 4.619v12.764a1 1 0 0 1-.553.894l-4.553 2.277a2 2 0 0 1-1.788 0l-4.212-2.106a2 2 0 0 0-1.788 0l-3.659 1.83A1 1 0 0 1 3 19.381V6.618a1 1 0 0 1 .553-.894l4.553-2.277a2 2 0 0 1 1.788 0z"/><path d="M15 5.764v15"/><path d="M9 3.236v15"/>',
     alert: '<path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4"/><path d="M12 17h.01"/>',
+    arrowUp: '<path d="m5 12 7-7 7 7"/><path d="M12 19V5"/>',
   };
   function iconFor(code, isDay) {
     if (!has(code)) return 'cloud';
@@ -675,11 +678,21 @@
       + '<ol class="flex overflow-x-auto gap-1 px-2 pb-3 pt-2" aria-label="' + esc(t('next24')) + '">'
       + h.time.map(function (time, i) {
         var pp = h.precipitation_probability ? h.precipitation_probability[i] : null;
+        var wd = h.wind_direction_10m ? h.wind_direction_10m[i] : null;
+        var wdLabel = has(wd) ? t('windDir', { d: compass(wd), deg: num(wd) }) : '';
+        // Lucide arrow-up points north; Open-Meteo's direction is where the wind
+        // comes from, so +180 points the way the wind blows toward.
+        var wdSlot = has(wd)
+          ? '<span class="inline-flex w-4 h-4 text-sky-600 dark:text-sky-400" role="img" aria-label="' + esc(wdLabel) + '" title="' + esc(wdLabel) + '">'
+            + icon('arrowUp', 'w-4 h-4').replace('<svg ', '<svg style="transform:rotate(' + ((wd + 180) % 360) + 'deg)" ')
+            + '</span>'
+          : '<span class="w-4 h-4" aria-hidden="true"></span>';
         return '<li class="shrink-0 w-14 flex flex-col items-center gap-1 py-1 text-center">'
           + '<span class="text-xs text-zinc-500 dark:text-zinc-400">' + esc(hhmm(time)) + '</span>'
           + icon(iconFor(h.weather_code[i], h.is_day ? h.is_day[i] : 1), 'w-6 h-6 text-sky-600 dark:text-sky-400')
           + '<span class="text-sm font-medium">' + esc(temp(h.temperature_2m[i])) + '</span>'
           + '<span class="text-xs text-sky-700 dark:text-sky-300" title="' + esc(t('rainChance')) + '">' + (has(pp) ? esc(num(pp) + '%') : '-') + '</span>'
+          + wdSlot
           + '</li>';
       }).join('') + '</ol>'
       + '<h3 class="px-4 pt-3 border-t border-zinc-200 dark:border-zinc-800 text-sm font-medium">' + esc(t('next7')) + '</h3>'

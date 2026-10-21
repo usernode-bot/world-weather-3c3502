@@ -692,6 +692,9 @@
               + icon('arrowUp', 'w-4 h-4').replace('<svg ', '<svg style="transform:rotate(' + ((Number(wd) + 180) % 360) + 'deg)" ')
               + '</span>'
             : '<span class="inline-flex w-4 h-4" aria-hidden="true"></span>')
+          + '<span class="mt-0.5 flex h-8 w-1.5 items-end overflow-hidden rounded-full bg-zinc-200 dark:bg-zinc-800" aria-hidden="true">'
+          + (has(pp) ? '<span class="w-full rounded-full bg-sky-600 dark:bg-sky-400" style="height:' + Math.max(0, Math.min(100, Math.round(pp))) + '%"></span>' : '')
+          + '</span>'
           + '</li>';
       }).join('') + '</ol>'
       + '<h3 class="px-4 pt-3 border-t border-zinc-200 dark:border-zinc-800 text-sm font-medium">' + esc(t('next7')) + '</h3>'

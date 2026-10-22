@@ -48,6 +48,16 @@
       ]
     },
     {
+      "id": "weather.localtime",
+      "name": "Report shows the place's current local time",
+      "path": "/?place=1622846",
+      "expectSelector": "#location [data-localtime]",
+      "visual": true,
+      "impact": [
+        "public/**"
+      ]
+    },
+    {
       "name": "Forecast draws the hourly temperature trend chart",
       "path": "/?place=1622846",
       "expectSelector": "#forecast figure svg polyline"

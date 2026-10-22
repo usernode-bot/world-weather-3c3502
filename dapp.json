@@ -24,6 +24,14 @@
       "expectSelector": "#alert-banner"
     },
     {
+      "id": "header.sky",
+      "name": "Header shows a sky by the viewer's clock with its caption",
+      "path": "/",
+      "expectSelector": "main:has(#sky[aria-hidden=\"true\"][style*=\"linear-gradient\"]) #sky-caption[data-phase]",
+      "visual": true,
+      "impact": ["public/**"]
+    },
+    {
       "name": "Report keeps the alerts banner hidden for a place without a feed (Ubud)",
       "path": "/?place=1622846",
       "expectSelector": "#alert-banner.hidden"
@@ -43,6 +51,21 @@
       "name": "Forecast draws the hourly temperature trend chart",
       "path": "/?place=1622846",
       "expectSelector": "#forecast figure svg polyline"
+    },
+    {
+      "name": "Report draws the daylight bar under the current weather (Ubud)",
+      "path": "/?place=1622846",
+      "expectSelector": "#current #daylight div[role=\"img\"]"
+    },
+    {
+      "id": "forecast.wind",
+      "name": "Forecast hours show a wind direction arrow (live hourly wind)",
+      "path": "/?place=1622846",
+      "expectSelector": "#forecast ol li span[role=\"img\"][aria-label]",
+      "impact": [
+        "public/**",
+        "server.js"
+      ]
     },
     {
       "name": "Report shows a wind speed unit switch (km/j vs mph)",

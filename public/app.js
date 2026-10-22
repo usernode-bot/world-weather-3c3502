@@ -79,6 +79,7 @@
       uv: 'Indeks UV',
       precip: 'Curah hujan',
       precipNow: '{v} mm (15 menit terakhir)',
+      precipNowIn: '{v} in (15 menit terakhir)',
       unavailable: 'Tidak tersedia',
       next24: '24 jam ke depan',
       next7: '7 hari ke depan',
@@ -208,6 +209,7 @@
       uv: 'UV index',
       precip: 'Precipitation',
       precipNow: '{v} mm (last 15 minutes)',
+      precipNowIn: '{v} in (last 15 minutes)',
       unavailable: 'Not available',
       next24: 'Next 24 hours',
       next7: 'Next 7 days',
@@ -399,6 +401,26 @@
     if (!has(kmh)) return t('unavailable');
     var unit = t(state.speed === 'mph' ? 'unitMph' : 'unitKmh');
     return (state.speed === 'mph' ? num(kmh / 1.609344) : num(kmh)) + ' ' + unit;
+  }
+
+  // Open-Meteo returns visibility in metres; the choice made for wind speed
+  // also picks the distance unit, converting only for display.
+  function visibilityText(m) {
+    if (!has(m)) return t('unavailable');
+    if (state.speed === 'mph') {
+      var mi = m / 1609.344;
+      return num(mi, mi < 10 ? 1 : 0) + ' mi';
+    }
+    return m >= 1000 ? num(m / 1000, m < 10000 ? 1 : 0) + ' km' : num(m) + ' m';
+  }
+
+  // Open-Meteo returns precipitation in millimetres; show inches when the
+  // viewer has chosen mph.
+  function precipText(mm) {
+    if (!has(mm)) return t('unavailable');
+    return state.speed === 'mph'
+      ? t('precipNowIn', { v: num(mm / 25.4, 2) })
+      : t('precipNow', { v: num(mm, 1) });
   }
 
   // Open-Meteo answers in the place's own local time as "YYYY-MM-DDTHH:MM"
@@ -661,9 +683,9 @@
       + row(t('humidity'), has(c.relative_humidity_2m) ? num(c.relative_humidity_2m) + '%' : t('unavailable'))
       + row(t('wind'), windText, has(c.wind_gusts_10m) ? t('gusts', { g: speed(c.wind_gusts_10m) }) : '')
       + row(t('pressure'), has(c.pressure_msl) ? num(c.pressure_msl) + ' hPa' : t('unavailable'))
-      + row(t('visibility'), has(c.visibility) ? (c.visibility >= 1000 ? num(c.visibility / 1000, c.visibility < 10000 ? 1 : 0) + ' km' : num(c.visibility) + ' m') : t('unavailable'))
+      + row(t('visibility'), visibilityText(c.visibility))
       + row(t('uv'), has(c.uv_index) ? num(c.uv_index, 1) + ' · ' + uvCategory(c.uv_index) : t('unavailable'))
-      + row(t('precip'), has(c.precipitation) ? t('precipNow', { v: num(c.precipitation, 1) }) : t('unavailable'))
+      + row(t('precip'), precipText(c.precipitation))
       + '</dl></div></section>';
 
     // Forecast

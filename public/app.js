@@ -137,6 +137,12 @@
         86: 'Hujan salju lebat', 95: 'Badai petir', 96: 'Badai petir dengan hujan es ringan',
         99: 'Badai petir dengan hujan es lebat',
       },
+      // The decorative sky follows the viewer's own clock, not the place's.
+      skyCaption: 'Langit sesuai jam Anda: {phase}, {time}',
+      skyPhase: {
+        night: 'Malam', predawn: 'Menjelang fajar', sunrise: 'Matahari terbit',
+        day: 'Siang', sunset: 'Matahari terbenam', dusk: 'Senja',
+      },
       locale: 'id-ID',
     },
     en: {
@@ -265,6 +271,11 @@
         81: 'Moderate showers', 82: 'Violent showers', 85: 'Light snow showers',
         86: 'Heavy snow showers', 95: 'Thunderstorm', 96: 'Thunderstorm with light hail',
         99: 'Thunderstorm with heavy hail',
+      },
+      skyCaption: 'Sky by your clock: {phase}, {time}',
+      skyPhase: {
+        night: 'Night', predawn: 'Before dawn', sunrise: 'Sunrise',
+        day: 'Day', sunset: 'Sunset', dusk: 'Dusk',
       },
       locale: 'en-GB',
     },
@@ -517,6 +528,7 @@
     segment('speed-toggle', 'speed', state.speed);
     renderFavoritesButton();
     renderBrowseButton();
+    renderSky();
   }
 
   var SEG_ON = ['bg-sky-600', 'text-white'];
@@ -546,6 +558,105 @@
       SEG_ON.forEach(function (c) { b.classList.toggle(c, on); });
       off.forEach(function (c) { b.classList.toggle(c, !on); });
     });
+  }
+
+  // ---------------------------------------------------------------- sky
+  // A decorative band of colour behind the top of the page. It follows the
+  // VIEWER's own clock (the device time zone), never the selected place's:
+  // the report's sunrise, sunset and day/night stay tied to the place. It is
+  // a visual cue only and reads no weather value.
+  var SKY_STOPS = [
+    { m: 0, light: ['#c7d2fe', '#e0e7ff'], dark: ['#0b1026', '#1e1b4b'] },
+    { m: 270, light: ['#c7d2fe', '#e0e7ff'], dark: ['#0b1026', '#1e1b4b'] },
+    { m: 330, light: ['#ddd6fe', '#fae8ff'], dark: ['#1e1b4b', '#3b0764'] },
+    { m: 390, light: ['#fed7aa', '#fef3c7'], dark: ['#431407', '#7c2d12'] },
+    { m: 480, light: ['#bae6fd', '#e0f2fe'], dark: ['#082f49', '#0c4a6e'] },
+    { m: 1020, light: ['#bae6fd', '#e0f2fe'], dark: ['#082f49', '#0c4a6e'] },
+    { m: 1110, light: ['#fecaca', '#fed7aa'], dark: ['#4c0519', '#7c2d12'] },
+    { m: 1170, light: ['#e9d5ff', '#fce7f3'], dark: ['#2e1065', '#3b0764'] },
+    { m: 1230, light: ['#c7d2fe', '#e0e7ff'], dark: ['#0b1026', '#1e1b4b'] },
+    { m: 1440, light: ['#c7d2fe', '#e0e7ff'], dark: ['#0b1026', '#1e1b4b'] },
+  ];
+
+  // "Now" through the platform bridge, so a staging preview opened at a
+  // chosen moment shows the sky at that moment; the real clock elsewhere.
+  function nowDate() {
+    try {
+      if (window.usernode && typeof window.usernode.now === 'function') return window.usernode.now();
+    } catch (_) {}
+    return new Date();
+  }
+
+  function rgbOf(hex) {
+    return [parseInt(hex.slice(1, 3), 16), parseInt(hex.slice(3, 5), 16), parseInt(hex.slice(5, 7), 16)];
+  }
+
+  function hexOf(rgb) {
+    return '#' + rgb.map(function (v) {
+      var h = Math.max(0, Math.min(255, Math.round(v))).toString(16);
+      return h.length < 2 ? '0' + h : h;
+    }).join('');
+  }
+
+  function mixHex(a, b, f) {
+    var x = rgbOf(a), y = rgbOf(b);
+    return hexOf([x[0] + (y[0] - x[0]) * f, x[1] + (y[1] - x[1]) * f, x[2] + (y[2] - x[2]) * f]);
+  }
+
+  // The gradient's two colours at `minutes` since midnight, interpolated
+  // linearly between the stops. Media queries are not involved: the theme is
+  // the "dark" class on <html>.
+  function skyAt(minutes, dark) {
+    var key = dark ? 'dark' : 'light';
+    var stops = SKY_STOPS;
+    var lo = stops[0], hi = stops[stops.length - 1];
+    for (var i = 0; i < stops.length - 1; i++) {
+      if (minutes >= stops[i].m && minutes <= stops[i + 1].m) { lo = stops[i]; hi = stops[i + 1]; break; }
+    }
+    var span = hi.m - lo.m;
+    var f = span > 0 ? Math.max(0, Math.min(1, (minutes - lo.m) / span)) : 0;
+    return [mixHex(lo[key][0], hi[key][0], f), mixHex(lo[key][1], hi[key][1], f)];
+  }
+
+  // Fixed clock times, the same everywhere: no sunrise lookup, which would
+  // need the viewer's location.
+  function skyPhase(minutes) {
+    if (minutes < 300 || minutes >= 1200) return 'night';
+    if (minutes < 360) return 'predawn';
+    if (minutes < 450) return 'sunrise';
+    if (minutes < 1065) return 'day';
+    if (minutes < 1140) return 'sunset';
+    return 'dusk';
+  }
+
+  function renderSky() {
+    var band = $('sky'), cap = $('sky-caption');
+    if (!band || !cap) return;
+    var now = nowDate();
+    var m = now.getHours() * 60 + now.getMinutes();
+    var dark = document.documentElement.classList.contains('dark');
+    var c = skyAt(m, dark);
+    // Fade to the page's own ground (zinc-50 / zinc-950) rather than to
+    // "transparent", which some browsers interpolate through transparent
+    // black and grey out the bottom of the band.
+    var fade = dark ? 'rgba(9, 9, 11, 0)' : 'rgba(250, 250, 250, 0)';
+    band.style.background = 'linear-gradient(to bottom, ' + c[0] + ' 0%, ' + c[1] + ' 55%, ' + fade + ' 100%)';
+    var phase = skyPhase(m);
+    cap.dataset.phase = phase;
+    cap.textContent = t('skyCaption', {
+      phase: STRINGS[state.lang].skyPhase[phase],
+      time: now.toLocaleTimeString(STRINGS[state.lang].locale, { hour: '2-digit', minute: '2-digit' }),
+    });
+  }
+
+  // Re-render on the next minute boundary, so the caption's minute stays in
+  // step with the clock and a device time zone or DST change is picked up.
+  var skyTimer = null;
+  function scheduleSky() {
+    clearTimeout(skyTimer);
+    var now = nowDate();
+    var ms = 60000 - (now.getSeconds() * 1000 + now.getMilliseconds()) + 50;
+    skyTimer = setTimeout(function () { renderSky(); scheduleSky(); }, ms);
   }
 
   function setStatus(kind, text) {
@@ -1344,7 +1455,21 @@
     else setStatus('empty');
   }
 
+  // Background tabs throttle timers, so catch up when the tab is shown again.
+  document.addEventListener('visibilitychange', function () {
+    if (document.hidden) return;
+    renderSky();
+    scheduleSky();
+  });
+  window.addEventListener('focus', function () { renderSky(); scheduleSky(); });
+  // Covers the in-app theme switch, the Homeroom theme event and the OS
+  // preference, all of which only toggle the "dark" class on <html>.
+  if (window.MutationObserver) {
+    new MutationObserver(renderSky).observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
+  }
+
   renderStatic();
+  scheduleSky();
   loadFavorites();
 
   // The viewer's Homeroom language, when set, outranks the device guess

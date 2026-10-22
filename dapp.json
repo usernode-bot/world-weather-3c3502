@@ -24,6 +24,14 @@
       "expectSelector": "#alert-banner"
     },
     {
+      "id": "header.sky",
+      "name": "Header shows a sky by the viewer's clock with its caption",
+      "path": "/",
+      "expectSelector": "main:has(#sky[aria-hidden=\"true\"][style*=\"linear-gradient\"]) #sky-caption[data-phase]",
+      "visual": true,
+      "impact": ["public/**"]
+    },
+    {
       "name": "Report keeps the alerts banner hidden for a place without a feed (Ubud)",
       "path": "/?place=1622846",
       "expectSelector": "#alert-banner.hidden"

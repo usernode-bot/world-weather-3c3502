@@ -69,6 +69,7 @@
       humidity: 'Kelembapan',
       wind: 'Angin',
       windFrom: '{s} dari {d}',
+      windDir: 'Angin dari {d} ({deg}°)',
       gusts: 'hembusan hingga {g}',
       unitTempLabel: 'Satuan suhu',
       unitSpeedLabel: 'Satuan kecepatan angin',
@@ -144,6 +145,12 @@
         86: 'Hujan salju lebat', 95: 'Badai petir', 96: 'Badai petir dengan hujan es ringan',
         99: 'Badai petir dengan hujan es lebat',
       },
+      // The decorative sky follows the viewer's own clock, not the place's.
+      skyCaption: 'Langit sesuai jam Anda: {phase}, {time}',
+      skyPhase: {
+        night: 'Malam', predawn: 'Menjelang fajar', sunrise: 'Matahari terbit',
+        day: 'Siang', sunset: 'Matahari terbenam', dusk: 'Senja',
+      },
       locale: 'id-ID',
     },
     en: {
@@ -205,6 +212,7 @@
       humidity: 'Humidity',
       wind: 'Wind',
       windFrom: '{s} from the {d}',
+      windDir: 'Wind from the {d} ({deg}°)',
       gusts: 'gusts up to {g}',
       unitTempLabel: 'Temperature unit',
       unitSpeedLabel: 'Wind speed unit',
@@ -279,6 +287,11 @@
         81: 'Moderate showers', 82: 'Violent showers', 85: 'Light snow showers',
         86: 'Heavy snow showers', 95: 'Thunderstorm', 96: 'Thunderstorm with light hail',
         99: 'Thunderstorm with heavy hail',
+      },
+      skyCaption: 'Sky by your clock: {phase}, {time}',
+      skyPhase: {
+        night: 'Night', predawn: 'Before dawn', sunrise: 'Sunrise',
+        day: 'Day', sunset: 'Sunset', dusk: 'Dusk',
       },
       locale: 'en-GB',
     },
@@ -477,6 +490,7 @@
     trash: '<path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/>',
     x: '<path d="M18 6 6 18"/><path d="m6 6 12 12"/>',
     chevron: '<path d="m9 18 6-6-6-6"/>',
+    arrowUp: '<path d="m5 12 7-7 7 7"/><path d="M12 19V5"/>',
     map: '<path d="M14.106 5.553a2 2 0 0 0 1.788 0l3.659-1.83A1 1 0 0 1 21 4.619v12.764a1 1 0 0 1-.553.894l-4.553 2.277a2 2 0 0 1-1.788 0l-4.212-2.106a2 2 0 0 0-1.788 0l-3.659 1.83A1 1 0 0 1 3 19.381V6.618a1 1 0 0 1 .553-.894l4.553-2.277a2 2 0 0 1 1.788 0z"/><path d="M15 5.764v15"/><path d="M9 3.236v15"/>',
     alert: '<path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4"/><path d="M12 17h.01"/>',
   };
@@ -531,6 +545,7 @@
     segment('speed-toggle', 'speed', state.speed);
     renderFavoritesButton();
     renderBrowseButton();
+    renderSky();
   }
 
   var SEG_ON = ['bg-sky-600', 'text-white'];
@@ -560,6 +575,105 @@
       SEG_ON.forEach(function (c) { b.classList.toggle(c, on); });
       off.forEach(function (c) { b.classList.toggle(c, !on); });
     });
+  }
+
+  // ---------------------------------------------------------------- sky
+  // A decorative band of colour behind the top of the page. It follows the
+  // VIEWER's own clock (the device time zone), never the selected place's:
+  // the report's sunrise, sunset and day/night stay tied to the place. It is
+  // a visual cue only and reads no weather value.
+  var SKY_STOPS = [
+    { m: 0, light: ['#c7d2fe', '#e0e7ff'], dark: ['#0b1026', '#1e1b4b'] },
+    { m: 270, light: ['#c7d2fe', '#e0e7ff'], dark: ['#0b1026', '#1e1b4b'] },
+    { m: 330, light: ['#ddd6fe', '#fae8ff'], dark: ['#1e1b4b', '#3b0764'] },
+    { m: 390, light: ['#fed7aa', '#fef3c7'], dark: ['#431407', '#7c2d12'] },
+    { m: 480, light: ['#bae6fd', '#e0f2fe'], dark: ['#082f49', '#0c4a6e'] },
+    { m: 1020, light: ['#bae6fd', '#e0f2fe'], dark: ['#082f49', '#0c4a6e'] },
+    { m: 1110, light: ['#fecaca', '#fed7aa'], dark: ['#4c0519', '#7c2d12'] },
+    { m: 1170, light: ['#e9d5ff', '#fce7f3'], dark: ['#2e1065', '#3b0764'] },
+    { m: 1230, light: ['#c7d2fe', '#e0e7ff'], dark: ['#0b1026', '#1e1b4b'] },
+    { m: 1440, light: ['#c7d2fe', '#e0e7ff'], dark: ['#0b1026', '#1e1b4b'] },
+  ];
+
+  // "Now" through the platform bridge, so a staging preview opened at a
+  // chosen moment shows the sky at that moment; the real clock elsewhere.
+  function nowDate() {
+    try {
+      if (window.usernode && typeof window.usernode.now === 'function') return window.usernode.now();
+    } catch (_) {}
+    return new Date();
+  }
+
+  function rgbOf(hex) {
+    return [parseInt(hex.slice(1, 3), 16), parseInt(hex.slice(3, 5), 16), parseInt(hex.slice(5, 7), 16)];
+  }
+
+  function hexOf(rgb) {
+    return '#' + rgb.map(function (v) {
+      var h = Math.max(0, Math.min(255, Math.round(v))).toString(16);
+      return h.length < 2 ? '0' + h : h;
+    }).join('');
+  }
+
+  function mixHex(a, b, f) {
+    var x = rgbOf(a), y = rgbOf(b);
+    return hexOf([x[0] + (y[0] - x[0]) * f, x[1] + (y[1] - x[1]) * f, x[2] + (y[2] - x[2]) * f]);
+  }
+
+  // The gradient's two colours at `minutes` since midnight, interpolated
+  // linearly between the stops. Media queries are not involved: the theme is
+  // the "dark" class on <html>.
+  function skyAt(minutes, dark) {
+    var key = dark ? 'dark' : 'light';
+    var stops = SKY_STOPS;
+    var lo = stops[0], hi = stops[stops.length - 1];
+    for (var i = 0; i < stops.length - 1; i++) {
+      if (minutes >= stops[i].m && minutes <= stops[i + 1].m) { lo = stops[i]; hi = stops[i + 1]; break; }
+    }
+    var span = hi.m - lo.m;
+    var f = span > 0 ? Math.max(0, Math.min(1, (minutes - lo.m) / span)) : 0;
+    return [mixHex(lo[key][0], hi[key][0], f), mixHex(lo[key][1], hi[key][1], f)];
+  }
+
+  // Fixed clock times, the same everywhere: no sunrise lookup, which would
+  // need the viewer's location.
+  function skyPhase(minutes) {
+    if (minutes < 300 || minutes >= 1200) return 'night';
+    if (minutes < 360) return 'predawn';
+    if (minutes < 450) return 'sunrise';
+    if (minutes < 1065) return 'day';
+    if (minutes < 1140) return 'sunset';
+    return 'dusk';
+  }
+
+  function renderSky() {
+    var band = $('sky'), cap = $('sky-caption');
+    if (!band || !cap) return;
+    var now = nowDate();
+    var m = now.getHours() * 60 + now.getMinutes();
+    var dark = document.documentElement.classList.contains('dark');
+    var c = skyAt(m, dark);
+    // Fade to the page's own ground (zinc-50 / zinc-950) rather than to
+    // "transparent", which some browsers interpolate through transparent
+    // black and grey out the bottom of the band.
+    var fade = dark ? 'rgba(9, 9, 11, 0)' : 'rgba(250, 250, 250, 0)';
+    band.style.background = 'linear-gradient(to bottom, ' + c[0] + ' 0%, ' + c[1] + ' 55%, ' + fade + ' 100%)';
+    var phase = skyPhase(m);
+    cap.dataset.phase = phase;
+    cap.textContent = t('skyCaption', {
+      phase: STRINGS[state.lang].skyPhase[phase],
+      time: now.toLocaleTimeString(STRINGS[state.lang].locale, { hour: '2-digit', minute: '2-digit' }),
+    });
+  }
+
+  // Re-render on the next minute boundary, so the caption's minute stays in
+  // step with the clock and a device time zone or DST change is picked up.
+  var skyTimer = null;
+  function scheduleSky() {
+    clearTimeout(skyTimer);
+    var now = nowDate();
+    var ms = 60000 - (now.getSeconds() * 1000 + now.getMilliseconds()) + 50;
+    skyTimer = setTimeout(function () { renderSky(); scheduleSky(); }, ms);
   }
 
   function setStatus(kind, text) {
@@ -731,11 +845,23 @@
       + '<ol class="flex overflow-x-auto gap-1 px-2 pb-3 pt-2" aria-label="' + esc(t('next24')) + '">'
       + h.time.map(function (time, i) {
         var pp = h.precipitation_probability ? h.precipitation_probability[i] : null;
+        // Open-Meteo reports the direction the wind comes from, so add 180°
+        // to point the arrow the way the wind blows to.
+        var wd = h.wind_direction_10m ? h.wind_direction_10m[i] : null;
+        var windLabel = has(wd) ? t('windDir', { d: compass(wd), deg: num(wd) }) : '';
         return '<li class="shrink-0 w-14 flex flex-col items-center gap-1 py-1 text-center">'
           + '<span class="text-xs text-zinc-500 dark:text-zinc-400">' + esc(hhmm(time)) + '</span>'
           + icon(iconFor(h.weather_code[i], h.is_day ? h.is_day[i] : 1), 'w-6 h-6 text-sky-600 dark:text-sky-400')
           + '<span class="text-sm font-medium">' + esc(temp(h.temperature_2m[i])) + '</span>'
           + '<span class="text-xs text-sky-700 dark:text-sky-300" title="' + esc(t('rainChance')) + '">' + (has(pp) ? esc(num(pp) + '%') : '-') + '</span>'
+          + (has(wd)
+            ? '<span class="inline-flex w-4 h-4 text-sky-600 dark:text-sky-400" role="img" title="' + esc(windLabel) + '" aria-label="' + esc(windLabel) + '">'
+              + icon('arrowUp', 'w-4 h-4').replace('<svg ', '<svg style="transform:rotate(' + ((Number(wd) + 180) % 360) + 'deg)" ')
+              + '</span>'
+            : '<span class="inline-flex w-4 h-4" aria-hidden="true"></span>')
+          + '<span class="mt-0.5 flex h-8 w-1.5 items-end overflow-hidden rounded-full bg-zinc-200 dark:bg-zinc-800" aria-hidden="true">'
+          + (has(pp) ? '<span class="w-full rounded-full bg-sky-600 dark:bg-sky-400" style="height:' + Math.max(0, Math.min(100, Math.round(pp))) + '%"></span>' : '')
+          + '</span>'
           + '</li>';
       }).join('') + '</ol>'
       + '<h3 class="px-4 pt-3 border-t border-zinc-200 dark:border-zinc-800 text-sm font-medium">' + esc(t('next7')) + '</h3>'
@@ -1397,7 +1523,21 @@
     else setStatus('empty');
   }
 
+  // Background tabs throttle timers, so catch up when the tab is shown again.
+  document.addEventListener('visibilitychange', function () {
+    if (document.hidden) return;
+    renderSky();
+    scheduleSky();
+  });
+  window.addEventListener('focus', function () { renderSky(); scheduleSky(); });
+  // Covers the in-app theme switch, the Homeroom theme event and the OS
+  // preference, all of which only toggle the "dark" class on <html>.
+  if (window.MutationObserver) {
+    new MutationObserver(renderSky).observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
+  }
+
   renderStatic();
+  scheduleSky();
   loadFavorites();
 
   // The viewer's Homeroom language, when set, outranks the device guess

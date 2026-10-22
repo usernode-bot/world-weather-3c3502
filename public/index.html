@@ -118,7 +118,12 @@
   </script>
 </head>
 <body class="bg-zinc-50 text-zinc-900 dark:bg-zinc-950 dark:text-zinc-100 min-h-screen">
-  <main class="max-w-2xl mx-auto px-4 pt-6 pb-10 flex flex-col gap-6" style="padding-bottom: calc(2.5rem + var(--un-safe-inset-bottom, env(safe-area-inset-bottom, 0px)))">
+  <main class="relative isolate max-w-2xl mx-auto px-4 pt-6 pb-10 flex flex-col gap-6" style="padding-bottom: calc(2.5rem + var(--un-safe-inset-bottom, env(safe-area-inset-bottom, 0px)))">
+
+    <!-- Decorative sky by the VIEWER's clock, filled by app.js renderSky().
+         It reads no weather value and sits behind the header and search form
+         (isolate on <main> keeps -z-10 above the body ground). -->
+    <div id="sky" aria-hidden="true" class="pointer-events-none absolute inset-x-0 top-0 h-72 sm:h-56 -z-10 rounded-b-xl"></div>
 
     <!-- Severe-weather banner for the place on screen, filled by app.js
          renderBanner(). Stays hidden unless an Extreme/Severe warning is
@@ -126,7 +131,13 @@
     <div id="alert-banner" role="alert" class="hidden"></div>
 
     <header class="flex flex-wrap items-center justify-between gap-3">
-      <h1 class="text-2xl font-bold">World Weather</h1>
+      <div>
+        <h1 class="text-2xl font-bold">World Weather</h1>
+        <!-- Names the part of the day the sky shows, in the viewer's own
+             time zone. Filled by app.js renderSky(). Not aria-live, so it is
+             not announced again every minute. -->
+        <p id="sky-caption" class="mt-0.5 text-xs text-zinc-600 dark:text-zinc-300"></p>
+      </div>
       <div class="flex flex-wrap items-center gap-2">
         <button type="button" id="browse-btn" aria-controls="browse" aria-expanded="false"
           class="inline-flex items-center gap-1.5 rounded-lg border border-zinc-200 dark:border-zinc-800 px-2.5 py-1.5 text-sm font-medium text-zinc-700 dark:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500">Jelajahi</button>

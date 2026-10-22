@@ -48,6 +48,11 @@
       ]
     },
     {
+      "name": "Forecast draws the hourly temperature trend chart",
+      "path": "/?place=1622846",
+      "expectSelector": "#forecast figure svg polyline"
+    },
+    {
       "name": "Report draws the daylight bar under the current weather (Ubud)",
       "path": "/?place=1622846",
       "expectSelector": "#current #daylight div[role=\"img\"]"

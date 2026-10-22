@@ -82,6 +82,9 @@
       precipNow: '{v} mm (15 menit terakhir)',
       unavailable: 'Tidak tersedia',
       next24: '24 jam ke depan',
+      tempTrend: 'Tren suhu per jam',
+      tempTrendRange: 'Terhangat {hi} pukul {hiT} · Terdingin {lo} pukul {loT}',
+      tempTrendNone: 'Suhu per jam tidak tersedia.',
       next7: '7 hari ke depan',
       today: 'Hari ini',
       lessCertain: 'Kurang pasti',
@@ -225,6 +228,9 @@
       precipNow: '{v} mm (last 15 minutes)',
       unavailable: 'Not available',
       next24: 'Next 24 hours',
+      tempTrend: 'Hourly temperature trend',
+      tempTrendRange: 'Warmest {hi} at {hiT} · Coolest {lo} at {loT}',
+      tempTrendNone: 'Hourly temperature is not available.',
       next7: 'Next 7 days',
       today: 'Today',
       lessCertain: 'Less certain',
@@ -743,6 +749,63 @@
       + '</dd></div>';
   }
 
+  // Small line chart of temperature_2m over the next 24 hours, so the warming
+  // and cooling trend reads at a glance. Drawn from the raw Celsius values;
+  // only the labels go through temp(), since the unit conversion is linear.
+  function tempTrend(h) {
+    var ts = h.time || [], vs = h.temperature_2m || [];
+    var valid = [];
+    for (var i = 0; i < ts.length; i++) if (has(vs[i])) valid.push(i);
+    var note = '<p class="px-4 pt-2 text-sm text-zinc-500 dark:text-zinc-400">' + esc(t('tempTrendNone')) + '</p>';
+    if (valid.length < 2) return note;
+
+    var minI = valid[0], maxI = valid[0];
+    valid.forEach(function (j) {
+      if (vs[j] < vs[minI]) minI = j;
+      if (vs[j] > vs[maxI]) maxI = j;
+    });
+    var min = vs[minI], max = vs[maxI];
+    function x(j) { return 8 + j * 304 / (ts.length - 1); }
+    function y(v) { return max === min ? 46 : 78 - (v - min) / (max - min) * 64; }
+    function pt(j) { return x(j).toFixed(1) + ',' + y(vs[j]).toFixed(1); }
+    function anchor(j) { return x(j) < 20 ? 'start' : x(j) > 300 ? 'end' : 'middle'; }
+
+    // Consecutive hours form one run; a missing hour breaks the line there.
+    var runs = [], cur = [valid[0]];
+    for (var k = 1; k < valid.length; k++) {
+      if (valid[k] === valid[k - 1] + 1) cur.push(valid[k]);
+      else { runs.push(cur); cur = [valid[k]]; }
+    }
+    runs.push(cur);
+
+    var shapes = runs.map(function (run) {
+      if (run.length < 2) return '<circle cx="' + x(run[0]).toFixed(1) + '" cy="' + y(vs[run[0]]).toFixed(1) + '" r="2" fill="currentColor"/>';
+      var pts = run.map(pt).join(' ');
+      return '<polygon points="' + pts + ' ' + x(run[run.length - 1]).toFixed(1) + ',82 ' + x(run[0]).toFixed(1) + ',82" fill="currentColor" fill-opacity="0.12"/>'
+        + '<polyline points="' + pts + '" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>';
+    }).join('');
+
+    var dots = '<circle cx="' + x(maxI).toFixed(1) + '" cy="' + y(max).toFixed(1) + '" r="3" fill="currentColor"/>';
+    var labels = '<text x="' + x(maxI).toFixed(1) + '" y="' + (y(max) - 5).toFixed(1) + '" text-anchor="' + anchor(maxI) + '">' + esc(temp(max)) + '</text>';
+    if (max !== min) {
+      dots += '<circle cx="' + x(minI).toFixed(1) + '" cy="' + y(min).toFixed(1) + '" r="3" fill="currentColor"/>';
+      labels += '<text x="' + x(minI).toFixed(1) + '" y="' + (y(min) - 10).toFixed(1) + '" text-anchor="' + anchor(minI) + '">' + esc(temp(min)) + '</text>';
+    }
+    for (var q = 0; q < ts.length; q += 6) {
+      labels += '<text x="' + x(q).toFixed(1) + '" y="98"' + (q === 0 ? '' : ' text-anchor="middle"') + '>' + esc(hhmm(ts[q])) + '</text>';
+    }
+
+    var caption = t('tempTrendRange', { hi: temp(max), hiT: hhmm(ts[maxI]), lo: temp(min), loT: hhmm(ts[minI]) });
+    return '<figure class="px-4 pt-2">'
+      + '<p class="text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1">' + esc(t('tempTrend')) + '</p>'
+      + '<svg viewBox="0 0 320 104" role="img" aria-label="' + esc(t('tempTrend') + ' — ' + caption) + '" class="block w-full h-auto text-sky-600 dark:text-sky-400">'
+      + shapes + dots
+      + '<g class="fill-zinc-500 dark:fill-zinc-400" font-size="10">' + labels + '</g>'
+      + '</svg>'
+      + '<figcaption class="mt-0.5 text-xs text-zinc-500 dark:text-zinc-400">' + esc(caption) + '</figcaption>'
+      + '</figure>';
+  }
+
   // A thin bar from today's sunrise to sunset, in the place's own local time,
   // with the elapsed part filled and a dot at now. Read-only: it shows the
   // moment the report was drawn.
@@ -842,6 +905,7 @@
     html += '<section id="forecast">' + sectionHeader(t('forecast'))
       + '<div class="' + CARD + '">'
       + '<h3 class="px-4 pt-3 text-sm font-medium">' + esc(t('next24')) + '</h3>'
+      + tempTrend(h)
       + '<ol class="flex overflow-x-auto gap-1 px-2 pb-3 pt-2" aria-label="' + esc(t('next24')) + '">'
       + h.time.map(function (time, i) {
         var pp = h.precipitation_probability ? h.precipitation_probability[i] : null;
